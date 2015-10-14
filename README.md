@@ -3,7 +3,7 @@
 Model helpers are small collection of django functions that make working with models easier. This doc describe each of these helpers 
 
 ### __model\_helpers.upload_to__
- pass `model_helpers.upload_to` as `upload_to` parameter for any FileField or ImageField.
+Pass `model_helpers.upload_to` as `upload_to` parameter for any FileField or ImageField.
 This will generates random file name and return it while keeping the original file extension. each model get its own storage folder named after model's name.
 
 __Sample usage:__
@@ -17,8 +17,7 @@ __Sample usage:__
 uploaded images for this model will be stored in: `media/Profile/<random_name>`
 
 ### get\_current\_datetime
-Normally calling this function is same as calling `timezone.now()`
-However when writing test cases for your model/api you might need to assume certain datetime to be current datetime and that's when this function comes handy.
+Normally calling this function is same as calling `timezone.now()` however, when writing test cases for your model/api you might need to assume certain datetime to be current datetime and that's when this function comes handy.
 
 	In [2]: get_current_datetime()
 	Out[2]: datetime.datetime(2015, 10, 13, 4, 53, 55, 443135, tzinfo=<UTC>)
@@ -29,11 +28,11 @@ However when writing test cases for your model/api you might need to assume cert
 	In [6]: get_current_datetime()
 	Out[6]: datetime.datetime(2014, 1, 1, 1, 1, 1, tzinfo=<UTC>)
 
-The idea is using this function exclusively in your code to get current date/time in order to facilitate writing test cases.
+Use this function exclusively in your code to get current date/time in order to facilitate writing test cases.
 
 ### cached\_model\_property decorator
 
-`cached_model_property` is a decorator for model functions that takes no arguments
+`cached_model_property` is a decorator for model functions that takes no arguments.
  The decorator convert the function into a property that support caching out of the box
   
   __Sample usage:__
@@ -57,6 +56,8 @@ Now try
 * `team.points`  <-- this time result is returned from cache (points function is not called
 * `del team.points` <-- points value has been removed from cache
 * `team.points`  <-- complex DB queries will happen, result will be returned
+
+__How does it work?__: first time the decorator store the function output in the cache with `key = "<model_class>_<instance.pk>_<function_name>"` so if you have two models with same name, or have model that provide no primary key you can't use this decorator.
 
 set `readonly` parameter to `False` to make the property writeable
 
@@ -155,5 +156,5 @@ then in your code you can do
     settings = Settings.objects.filter(name=AVAILABLE_SETTINGS.max_page_width).first()
     if settings:
         return settings.value
-    return AVAILABLE_SETTINGS[settings.name]["default"]
+    return AVAILABLE_SETTINGS["max_page_width"]["default"]
   
