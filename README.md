@@ -192,6 +192,19 @@ __Note:__ By default choices are ordered by display name
 
 #### Useful functions of `Choices` class
 
-* `get_display_name`: given an ID, return the display name of that id. same as model's `get_<field_name>_display()`
-* `get_code_name`: same as `get_display_name` but return code name
- 
+* `get_display_name`: given choice id, return the display name of that id. same as model's `get_<field_name>_display()`
+* `get_code_name`: Given choice id same as `get_display_name` but return code name
+* `get_value`: Given choice id, return value of any key defined inside choice entry
+
+__Example:__
+
+    CHOICEs_EXAMPLE = Choices({"my_key": {"id": 0, "display": "Display Of My Key", "additional_key": 1234})
+    >>> CHOICEs_EXAMPLE.get_display_name(0)
+    "Display Of My Key"
+    >>> CHOICEs_EXAMPLE.get_code_name(0)
+    "my_key"
+    >>> CHOICEs_EXAMPLE.get_value(0, "additional_key")
+    1234
+
+`CHOICEs_EXAMPLE.get_value(0, "display")` return same result as `CHOICEs_EXAMPLE.get_display_name()` but it might be less effective performancewise.
+
