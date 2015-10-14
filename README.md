@@ -198,13 +198,13 @@ __Note:__ By default choices are ordered by display name
 
 __Example:__
 
-    CHOICEs_EXAMPLE = Choices({"my_key": {"id": 0, "display": "Display Of My Key", "additional_key": 1234})
-    >>> CHOICEs_EXAMPLE.get_display_name(0)
+    CHOICES_EXAMPLE = Choices({"my_key": {"id": 0, "display": "Display Of My Key", "additional_key": 1234})
+    >>> CHOICES_EXAMPLE.get_display_name(0)
     "Display Of My Key"
-    >>> CHOICEs_EXAMPLE.get_code_name(0)
+    >>> CHOICES_EXAMPLE.get_code_name(0)
     "my_key"
-    >>> CHOICEs_EXAMPLE.get_value(0, "additional_key")
+    >>> CHOICES_EXAMPLE.get_value(0, "additional_key")
     1234
 
-`CHOICEs_EXAMPLE.get_value(0, "display")` return same result as `CHOICEs_EXAMPLE.get_display_name()` but it might be less effective performancewise.
+`CHOICES_EXAMPLE.get_value(0, "display")` return same result as `CHOICES_EXAMPLE.get_display_name()` but it might be less effective performancewise.
 
