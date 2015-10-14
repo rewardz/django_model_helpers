@@ -151,6 +151,8 @@ class Choices(OrderedDict):
 
     # always True except during the execution of__init__() and update() methods
     _read_only = True
+    # cache for mapping between choice id and choice dictionary (populated on demand)
+    _choices_id = None
 
     def __init__(self, choices, order_by="display"):
         """
@@ -178,6 +180,7 @@ class Choices(OrderedDict):
             if not issubclass(choice_options.__class__, dict):
                 # in case passing {"insect": 1} assume 1 is the id
                 choice_options = {"id": choice_options}
+                self[choice_code] = choice_options
 
             choice_id = choice_options["id"]
             # Validation block
@@ -208,27 +211,26 @@ class Choices(OrderedDict):
         """
         return self._choices[choice_id]
 
-    def get_value(self, choice_id, key, raise_exception=True):
+    def get_value(self, choice_id, choice_key, raise_exception=True):
         """
         Finds a choice with id <choice_id> and return value of key <key>
 
         :param choice_id: the db value of the choice in question
-        :param key: the key inside choice dictionary in which you want to get value of
+        :param choice_key: the key inside choice dictionary in which you want to get value of
         :param raise_exception: if True, KeyError exception will be raised if the key wasn't found
         :return: whatever stored in that choice key is returned,
                  if key not found and raise_exception=False then None is returned
         """
-        id_cache = getattr(self.get_value, "id_cache", {})
-        if len(id_cache) != len(self):  # if cache is not up to date
-            id_cache = self.get_value.cache = {item["id"]: (key, item) for key, item in self.iteritems()}
+        if self._choices_id is None:
+            self._choices_id = {item["id"]: (key, item) for key, item in self.iteritems()}
 
-        choice_name, choice = id_cache[choice_id]
-        if key is None:
+        choice_name, choice = self._choices_id[choice_id]
+        if choice_key is None:
             return choice_name
         elif raise_exception:
-            return choice[key]
+            return choice[choice_key]
         else:
-            return choice.get(key)
+            return choice.get(choice_key)
 
     def get_code_name(self, choice_id):
         """
@@ -236,7 +238,7 @@ class Choices(OrderedDict):
         :param choice_id: choice id
         :rtype: str
         """
-        return self.get_value(choice_id, key=None)
+        return self.get_value(choice_id, choice_key=None)
 
     def __getattr__(self, attr_name):
         if attr_name in self:
@@ -277,7 +279,6 @@ class Choices(OrderedDict):
         """
         :type new_data: Choices | OrderedDict | dict | tuple | list
         """
-
         if not new_data:
             new_data = kwargs
         elif new_data and kwargs:
@@ -293,6 +294,7 @@ class Choices(OrderedDict):
             raise ValueError("The following keys exist in both instances %s" % ", ".join(common_keys))
 
         self._choices.update(new_data())
+        self._choices_id = None
 
         super(Choices, self).update(new_data)
 
