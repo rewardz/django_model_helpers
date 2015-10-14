@@ -199,26 +199,44 @@ class Choices(OrderedDict):
         self._choices = OrderedDict(_choices)
         self._read_only = True
 
-    def get_display_name(self, id):
+    def get_display_name(self, choice_id):
         """
         Return translated display name of certain choice.
         same same model's get_<field_name>_display()
-        :param id: choice id
+        :param choice_id: choice id
         :rtype: str
         """
-        return self._choices[id]
+        return self._choices[choice_id]
 
-    def get_code_name(self, id):
+    def get_value(self, choice_id, key, raise_exception=True):
+        """
+        Finds a choice with id <choice_id> and return value of key <key>
+
+        :param choice_id: the db value of the choice in question
+        :param key: the key inside choice dictionary in which you want to get value of
+        :param raise_exception: if True, KeyError exception will be raised if the key wasn't found
+        :return: whatever stored in that choice key is returned,
+                 if key not found and raise_exception=False then None is returned
+        """
+        id_cache = getattr(self.get_value, "id_cache", {})
+        if len(id_cache) != len(self):  # if cache is not up to date
+            id_cache = self.get_value.cache = {item["id"]: (key, item) for key, item in self.iteritems()}
+
+        choice_name, choice = id_cache[choice_id]
+        if key is None:
+            return choice_name
+        elif raise_exception:
+            return choice[key]
+        else:
+            return choice.get(key)
+
+    def get_code_name(self, choice_id):
         """
         Return code name of certain choice
-        :param id: choice id
+        :param choice_id: choice id
         :rtype: str
         """
-        for key, value in self.iteritems():
-            if isinstance(value, dict) and value["id"] == id:
-                return key
-            elif value == id:
-                return key
+        return self.get_value(choice_id, key=None)
 
     def __getattr__(self, attr_name):
         if attr_name in self:
@@ -259,7 +277,6 @@ class Choices(OrderedDict):
         """
         :type new_data: Choices | OrderedDict | dict | tuple | list
         """
-        self._read_only = False
 
         if not new_data:
             new_data = kwargs
@@ -279,9 +296,9 @@ class Choices(OrderedDict):
 
         super(Choices, self).update(new_data)
 
-        self._read_only = True
-
     def __add__(self, other):
+        self._read_only = False
         result = self.copy()
         result.update(other)
+        self._read_only = True
         return result
