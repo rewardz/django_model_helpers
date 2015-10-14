@@ -129,7 +129,7 @@ The example above can be better written like that
          "sophomore": 1,
          "junior": 2,
          "Senior": 3
-      })
+      }, order_by="id")
 
 
     class Student(models.Model):
@@ -146,7 +146,10 @@ To return all students in grades higher than Sophomore
  
 * A choice can be defined as key/value `"sophomore": 1` in which case display name will be code name capitalized `"Sophomore"` and will be saved in DB as number `1`
 * A choice can be fully defined as key/dict `"freshman": {"id": 0, "display": "New comer"}` in which case display name will be `"New comer"` and id will be `0`
-* You can define extra keys to use in your code for example:
+
+#### Defining extra keys to use in your code.
+
+As mentioned before `Choices` can be treated as an OrderedDictionary and so you should feel free to use the free functionality, for example adding extra keys
 
         AVAILABLE_SETTINGS = Choices({
             "max_page_width": {"id": 0, "display": "Maximum page width in pixels", "default": 100})
@@ -158,3 +161,37 @@ then in your code you can do
         return settings.value
     return AVAILABLE_SETTINGS["max_page_width"]["default"]
   
+
+#### Ordering your `Choices`
+
+Assuming you have a big list of choices you might prefer to ask Choices class to order them for you.
+
+__Example:__
+
+    Choices({
+         "usa": {"display": "United States", "id": 0},
+         "egypt": 1,
+         "uk": {"display": "United Kingdom", "id": 2},
+         "ua": {"display": "Ukraine", "id": 3}
+        }, order_by="display")
+
+The fields will be in the order "Egypt", "Ukraine", "United Kingdom", "United States".
+
+`order_by="id"` will order the list by id
+ 
+If you don't want any sort of ordering then set `order_by=None` and in this case its better that you pass your choices as tuple of dictionaries to maintain order
+
+    Choices((
+         ("uk", {"display": "United Kingdom", "id": 2),
+         ("usa", {"display": "United States", "id": 0),
+         ("egypt", 1),
+         ("ua": {"display": "Ukraine", "id": 3})
+        ), order_by=None)
+
+__Note:__ By default choices are ordered by display name
+
+#### Useful functions of `Choices` class
+
+* `get_display_name`: given an ID, return the display name of that id. same as model's `get_<field_name>_display()`
+* `get_code_name`: same as `get_display_name` but return code name
+ 
