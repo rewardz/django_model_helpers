@@ -29,7 +29,7 @@ However when writing test cases for your model/api you might need to assume cert
 	In [6]: get_current_datetime()
 	Out[6]: datetime.datetime(2014, 1, 1, 1, 1, 1, tzinfo=<UTC>)
 
-The idea is using this function exclusively in your code to get current date/time.
+The idea is using this function exclusively in your code to get current date/time in order to facilitate writing test cases.
 
 ### cached\_model\_property decorator
 
@@ -51,26 +51,27 @@ The idea is using this function exclusively in your code to get current date/tim
 
 Now try
 
-`team = Team.objects.first()`
-`team.points`  <-- complex DB queries will happen, result will be returned
-`team.points`  <-- this time result is returned from cache (points function is not called
-`del team.points` <-- points value has been removed from cache
-`team.points`  <-- complex DB queries will happen, result will be returned
-  
-set `readonly` parameter `False` to make the property writeable
+    team = Team.objects.first()
+
+* `team.points`  <-- complex DB queries will happen, result will be returned
+* `team.points`  <-- this time result is returned from cache (points function is not called
+* `del team.points` <-- points value has been removed from cache
+* `team.points`  <-- complex DB queries will happen, result will be returned
+
+set `readonly` parameter to `False` to make the property writeable
+
 `team.editable_points = 88`
+
 In this case the assigned value will replace the value stored in the cache
-`team.editable_points`
-returns 88
 
-I am not use if its a good idea to make your cached property writable but its there if you need it.
+`team.editable_points` returns 88
 
-### Choices class
+I personally don't use the writable cached property option but might be useful to someone else
 
-This class was inspired by [Django Choices](https://pypi.python.org/pypi/django-choices/).
-Dealing with Django's `choices` attribute is a pain, for example
+### Choices class _inspired by [Django Choices](https://pypi.python.org/pypi/django-choices/)._
 
-Traditional way of implementing choices
+Dealing with Django's `choices` attribute is a pain.
+Here is a proper way of implementing choice field in Django
 
     class Student(models.Model):
         FRESHMAN = 'FR'
@@ -94,15 +95,16 @@ Then you can do
     if student.year_in_school == Student.SENIOR:
           # do some senior stuff
   
- With Choices class this becomes
- 
-	 YEAR_IN_SCHOOL_CHOICES = Choices({
-	     "freshman": "FR",
-             "sophomore": "SO",
-	     "junior": "JR",
-	     "Senior": "SR"
-	  })
-	  
+With Choices class this becomes
+
+    YEAR_IN_SCHOOL_CHOICES = Choices({
+        "freshman": "FR",
+        "sophomore": "SO",
+        "junior": "JR",
+        "Senior": "SR"
+    })
+
+
     class Student(models.Model):
         year_in_school = models.CharField(
                             max_length=2,
@@ -128,6 +130,7 @@ The example above can be better written like that
          "Senior": 3
       })
 
+
     class Student(models.Model):
         year_in_school = models.SmalllIntegerField(
                             choices=YEAR_IN_SCHOOL_CHOICES(),
@@ -137,7 +140,8 @@ Then you can do something like this
 
     Student.objects.filter(
         year_in_school__gt=YEAR_IN_SCHOOL_CHOICES.sophomore)
- To return all students in grades higher than Sophomore
+
+To return all students in grades higher than Sophomore
  
 * A choice can be defined as key/value `"sophomore": 1` in which case display name will be code name capitalized `"Sophomore"` and will be saved in DB as number `1`
 * A choice can be fully defined as key/dict `"freshman": {"id": 0, "display": "New comer"}` in which case display name will be `"New comer"` and id will be `0`
