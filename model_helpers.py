@@ -25,10 +25,7 @@ def upload_to(instance, filename):
 
 def get_current_datetime():
     """
-    This is a central function that return today's datetime
-    A CURRENT_DATETIME can be defined in settings which will cause the function to return that datetime instead
-    this is mainly useful for code test cases when current date needs to be well defined
-    :rtype: datetime.datetime
+    Depricated: Use freezegun instead
     """
     return getattr(settings, "CURRENT_DATETIME", None) or timezone.now()
 
