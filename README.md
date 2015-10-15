@@ -16,19 +16,10 @@ __Sample usage:__
 
 uploaded images for this model will be stored in: `media/Profile/<random_name>`
 
-### get\_current\_datetime
-Normally calling this function is same as calling `timezone.now()` however, when writing test cases for your model/api you might need to assume certain datetime to be current datetime and that's when this function comes handy.
+### get\_current\_datetime (_DEPRICATED_)
+~~Normally calling this function is same as calling `timezone.now()` however, when writing test cases for your model/api you might need to assume certain datetime to be current datetime and that's when this function comes handy.~~
 
-	In [2]: get_current_datetime()
-	Out[2]: datetime.datetime(2015, 10, 13, 4, 53, 55, 443135, tzinfo=<UTC>)
-	
-	In [3]: from django.conf import settings
-	In [4]: from django.utils.dateparse import parse_datetime
-	In [5]: settings.CURRENT_DATETIME = parse_datetime("2014-01-01T01:01:01Z")
-	In [6]: get_current_datetime()
-	Out[6]: datetime.datetime(2014, 1, 1, 1, 1, 1, tzinfo=<UTC>)
-
-Use this function exclusively in your code to get current date/time in order to facilitate writing test cases.
+This functionality is better implemented through [FreezeGun](https://github.com/spulec/freezegun)
 
 ### cached\_model\_property decorator
 
