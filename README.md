@@ -16,7 +16,7 @@ __Sample usage:__
 
 uploaded images for this model will be stored in: `media/Profile/<random_name>`
 
-### get\_current\_datetime (_DEPRICATED_)
+### get\_current\_datetime (_DEPRECATED_)
 ~~Normally calling this function is same as calling `timezone.now()` however, when writing test cases for your model/api you might need to assume certain datetime to be current datetime and that's when this function comes handy.~~
 
 This functionality is better implemented through [FreezeGun](https://github.com/spulec/freezegun)
