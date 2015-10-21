@@ -258,11 +258,6 @@ class Choices(OrderedDict):
             raise TypeError("Choices are constants and can't be modified")
         super(Choices, self).__setitem__(*args)
 
-    def __delitem__(self, attr, *args):
-        if self._read_only and attr in self:
-            raise TypeError("Choices are constants and can't be modified")
-        super(Choices, self).__delitem__(*args)
-
     def copy(self):
         new_self = Choices({}, order_by=self._order_by)
         new_self.update(self)
@@ -272,10 +267,10 @@ class Choices(OrderedDict):
         """
         :type new_data: Choices | OrderedDict | dict | tuple | list
         """
+        if self._read_only:
+            raise TypeError("Choices are constants and can't be modified")
+
         if not new_data:
-            new_data = kwargs
-        elif new_data and kwargs:
-            kwargs.update(new_data)
             new_data = kwargs
 
         if not isinstance(new_data, Choices):
@@ -286,14 +281,20 @@ class Choices(OrderedDict):
         if common_keys:
             raise ValueError("The following keys exist in both instances %s" % ", ".join(common_keys))
 
-        self._choices.update(new_data())
+        self._choices += (new_data())
         self._choices_id = None
 
         super(Choices, self).update(new_data)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self._read_only = True
+
     def __add__(self, other):
         self._read_only = False
-        result = self.copy()
+        with self.copy() as result:
         result.update(other)
         self._read_only = True
         return result
