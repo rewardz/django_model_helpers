@@ -1,9 +1,7 @@
 from os import path
-from django.core.exceptions import ValidationError
-import pytz
-from django.utils.translation import ugettext as _, ugettext_lazy
+from django.utils.text import slugify
+from django.utils.translation import ugettext as _
 from django.core.cache import cache
-from django.conf import settings
 from collections import OrderedDict
 
 UPLOAD_TO_BLACK_LISTED_EXTENSIONS = [
@@ -238,7 +236,7 @@ class Choices(OrderedDict):
 
     def __getattr__(self, attr_name):
         if attr_name in self:
-                return self[attr_name]["id"]
+            return self[attr_name]["id"]
         raise AttributeError("Attribute %s is not part of %s class" % (attr_name, self.__class__.__name__))
 
     def __call__(self):
@@ -295,6 +293,6 @@ class Choices(OrderedDict):
     def __add__(self, other):
         self._read_only = False
         with self.copy() as result:
-        result.update(other)
-        self._read_only = True
-        return result
+            result.update(other)
+            self._read_only = True
+            return result
