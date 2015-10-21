@@ -169,8 +169,7 @@ class Choices(OrderedDict):
 
         # Initialize parent dict with the choices provided by the user
         super(Choices, self).__init__(choices)
-        _choices = []
-        self._choices = OrderedDict()
+        self._choices = _choices = []
         self._order_by = order_by
 
         if not choices:
@@ -185,23 +184,18 @@ class Choices(OrderedDict):
                 self[choice_code] = choice_options
 
             choice_id = choice_options["id"]
-            # Validation block
-            if choice_id in choice_ids:
-                raise ValueError("id %s already used" % choice_id)
             choice_ids.add(choice_id)
             # End of validation
-            if "display" in choice_options:
+            if "display" not in choice_options:
+                choice_options["display"] = choice_code.replace("_", " ").capitalize()
                 display = choice_options["display"]
-            else:
-                display = choice_code.replace("_", " ").capitalize()
-            _choices.append((choice_id, ugettext_lazy(display)))
+            _choices.append((choice_id, _(display)))
         # Sort by display name
         if order_by == "display":
             _choices.sort(key=lambda x: x[1])
         elif order_by == "id":
             _choices.sort(key=lambda x: x[0])
 
-        self._choices = OrderedDict(_choices)
         self._read_only = True
 
     def get_display_name(self, choice_id):
@@ -211,7 +205,7 @@ class Choices(OrderedDict):
         :param choice_id: choice id
         :rtype: str
         """
-        return self._choices[choice_id]
+        return self.get_value(choice_id, "display")
 
     def get_value(self, choice_id, choice_key, raise_exception=True):
         """
@@ -244,10 +238,7 @@ class Choices(OrderedDict):
 
     def __getattr__(self, attr_name):
         if attr_name in self:
-            value = self[attr_name]
-            if isinstance(value, dict):
                 return self[attr_name]["id"]
-            return self[attr_name]
         raise AttributeError("Attribute %s is not part of %s class" % (attr_name, self.__class__.__name__))
 
     def __call__(self):
@@ -255,7 +246,7 @@ class Choices(OrderedDict):
         :return: list of choices
         :rtype: list
         """
-        return self._choices.items()
+        return self._choices
 
     def __setattr__(self, attr, *args):
         if self._read_only and attr in self:
