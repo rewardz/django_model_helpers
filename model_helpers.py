@@ -35,13 +35,6 @@ def upload_to(instance, full_filename):
     return UPLOAD_TO_FILE_TEMPLATE.format(model=model_name, filename=filename, ext=file_ext)
 
 
-def get_current_datetime():
-    """
-    Depricated: Use freezegun instead
-    """
-    return getattr(settings, "CURRENT_DATETIME", None) or timezone.now()
-
-
 def cached_model_property(model_method=None, **kwargs):
     """
     cached_model_property is a decorator for model functions that takes no arguments
