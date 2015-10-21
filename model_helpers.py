@@ -1,4 +1,4 @@
-from uuid import uuid4
+from os import path
 from django.core.exceptions import ValidationError
 import pytz
 from django.utils.translation import ugettext as _, ugettext_lazy
@@ -6,21 +6,33 @@ from django.core.cache import cache
 from django.conf import settings
 from collections import OrderedDict
 
+UPLOAD_TO_BLACK_LISTED_EXTENSIONS = [
+    "php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"
+]
+UPLOAD_TO_MAX_FILENAME_LEN = 40
+UPLOAD_TO_FILE_TEMPLATE = "{model}/%Y/{filename}.{ext}"
 
-def upload_to(instance, filename):
+
+def upload_to(instance, full_filename):
     """
     This function passed as "upload_to" parameter for any FileField or ImageField
-    It generates random file name and return it while keeping the original file extention
-    each model get its own storage folder named after model's name
+    It ensures file name is less than FILE_UPLOAD_MAX_FILENAME char also slugify the file and finally provide simple
+    protection against uploading some harmful files like (php or python files)
 
-    :param instance:
-    :param filename:
+    File is saved in a folder called <model_name>/<current_year>/file_name.ext
+    example: User/2015/profile_pic.jpg
+
+    :param instance: model instance which the file is uploaded for
+    :param full_filename: filename including its path
     :return: string
     """
     model_name = instance.__class__.__name__
-    file_ext = filename.split(".")[-1]
-    new_filename = "%s.%s" % (uuid4(), file_ext)
-    return "/".join([model_name, new_filename])
+    filename = path.basename(full_filename).lower()
+    filename, file_ext = filename.rsplit(".", 1)
+    if file_ext in UPLOAD_TO_BLACK_LISTED_EXTENSIONS:
+        raise ValueError("File extension '%s' is not allowed" % file_ext)
+    filename = slugify(filename)[:UPLOAD_TO_MAX_FILENAME_LEN]
+    return UPLOAD_TO_FILE_TEMPLATE.format(model=model_name, filename=filename, ext=file_ext)
 
 
 def get_current_datetime():
