@@ -1,10 +1,15 @@
 ## Model Helpers
 
-Model helpers are small collection of django functions that make working with models easier. This doc describe each of these helpers 
+Model helpers are small collection of django functions that make working with models easier.
+All functions here are compliant with pylint and has test cases with 100% code coverage.
+This doc describe each of these helpers.
 
 ### __model\_helpers.upload_to__
 Pass `model_helpers.upload_to` as `upload_to` parameter for any FileField or ImageField.
-This will generates random file name and return it while keeping the original file extension. each model get its own storage folder named after model's name.
+This will generates random file name and return it while keeping the original file extension.
+each model get its own storage folder named after model's name.
+
+`upload_to` function also block files with certain harmful extentions like "php" or "py" from being uploaded.
 
 __Sample usage:__
 	
@@ -14,12 +19,10 @@ __Sample usage:__
         name = CharField(max_length=100)
         picture = ImageField(upload_to=model_helpers.upload_to)
 
-uploaded images for this model will be stored in: `media/Profile/<random_name>`
+uploaded images for this model will be stored in: `media/Profile/<current_year>/<slugified_original_filename>`.
 
-### get\_current\_datetime (_DEPRECATED_)
-~~Normally calling this function is same as calling `timezone.now()` however, when writing test cases for your model/api you might need to assume certain datetime to be current datetime and that's when this function comes handy.~~
+__Note:__f filename exceeds 40 character, it will be trimmedl.
 
-This functionality is better implemented through [FreezeGun](https://github.com/spulec/freezegun)
 
 ### cached\_model\_property decorator
 
@@ -196,6 +199,4 @@ __Example:__
     "my_key"
     >>> CHOICES_EXAMPLE.get_value(0, "additional_key")
     1234
-
-`CHOICES_EXAMPLE.get_value(0, "display")` return same result as `CHOICES_EXAMPLE.get_display_name()` but it might be less effective performancewise.
 
