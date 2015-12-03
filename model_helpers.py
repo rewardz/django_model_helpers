@@ -1,8 +1,11 @@
-from os import path
+from django.core.exceptions import ValidationError
+from os import path as fs_path
 from django.utils.text import slugify
 from django.utils.translation import ugettext as _
 from django.core.cache import cache
+from django.db import models
 from collections import OrderedDict
+
 
 UPLOAD_TO_BLACK_LISTED_EXTENSIONS = [
     "php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"
@@ -25,7 +28,7 @@ def upload_to(instance, full_filename):
     :return: string
     """
     model_name = instance.__class__.__name__
-    filename = path.basename(full_filename).lower()
+    filename = fs_path.basename(full_filename).lower()
     filename, file_ext = filename.rsplit(".", 1)
     if file_ext in UPLOAD_TO_BLACK_LISTED_EXTENSIONS:
         raise ValueError("File extension '%s' is not allowed" % file_ext)
@@ -66,6 +69,7 @@ def cached_model_property(model_method=None, **kwargs):
     """
 
     readonly = kwargs.get("readonly", True)
+    cache_timeout = kwargs.get("cache_timeout", None)
 
     def func(f):
         def _get_cache_key(obj):
@@ -105,8 +109,8 @@ def cached_model_property(model_method=None, **kwargs):
             :return: None
             """
             cache_key = _get_cache_key(obj)
-            # Remove that key from the cache
-            cache.set(cache_key, value)
+            # Save that key in the cache
+            cache.set(cache_key, value, cache_timeout)
 
         if readonly:
             return property(fget=get_x, fdel=del_x)
@@ -186,7 +190,7 @@ class Choices(OrderedDict):
             # End of validation
             if "display" not in choice_options:
                 choice_options["display"] = choice_code.replace("_", " ").capitalize()
-                display = choice_options["display"]
+            display = choice_options["display"]
             _choices.append((choice_id, _(display)))
         # Sort by display name
         if order_by == "display":
@@ -296,3 +300,91 @@ class Choices(OrderedDict):
             result.update(other)
             self._read_only = True
             return result
+
+
+class KeyValueContainer(dict):
+
+    def __init__(self, seq, separator="=", **kwargs):
+        self.sep = separator
+        if isinstance(seq, basestring):
+            seq = self._parse_string(seq)
+        super(KeyValueContainer, self).__init__(seq, **kwargs)
+
+    def __str__(self):
+        result = []
+        for key, val in self.iteritems():
+            result.append(u"%s %s %s" % (key, self.sep, val))
+        return u"\n".join(result) + "\n"
+
+    def __unicode__(self):
+        return self.__str__()
+
+    def _parse_string(self, value):
+        result = {}
+        if not value:
+            return result
+
+        for line in value.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            if self.sep not in line:
+                raise ValueError(_("Invalid syntax in line %s\nExpected: key %s value") % (repr(line), self.sep))
+            key, value = [val.strip() for val in line.split(self.sep, 1)]
+            result[key] = value
+
+        return result
+
+
+class KeyValueField(models.TextField):
+    """
+    Basically a way to store configuration in DB and have it returned as dictionary.
+    Simple key/value store
+    data stored as
+    key = value
+    default separator is "=" but it can be customized
+
+    sample usage
+
+    class MyModel(models.Model):
+         options = KeyValueField(separator=":")
+
+    >> my_model.options = "key1 : val1 \n key2 : val2"
+    >> my_model.clean_fields()
+    >> my_model.options
+    {"key1": "val1", "key2": "val2"}
+    """
+    description = _("Key/Value dictionary field")
+    empty_values = (None,)
+
+    def __init__(self, separator="=", *args, **kwargs):
+        self.separator = separator
+        super(KeyValueField, self).__init__(*args, **kwargs)
+
+    def to_python(self, value):
+        """
+        :type value: unicode
+        :return: dictionary or - in case of null - return None
+        :rtype: KeyValueContainer|None
+        """
+        if isinstance(value, KeyValueField) or isinstance(value, dict):
+            return value
+
+        if value is None:
+            return value
+
+        try:
+            return KeyValueContainer(value, separator=self.separator)
+        except ValueError as e:
+            raise ValidationError(e.message)
+
+    def from_db_value(self, value, *args, **kwargs):
+        if value is None:
+            return None
+        return KeyValueContainer(value, separator=self.separator)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(KeyValueField, self).deconstruct()
+        if self.separator != "=":
+            kwargs["separator"] = self.separator
+        return name, path, args, kwargs
