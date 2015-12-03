@@ -1,5 +1,5 @@
 from nose import tools
-from common_app import model_helpers
+import model_helpers
 
 # Disable translation, We don't offer testing for translation functionality
 model_helpers.ugettext_lazy = lambda x: x

@@ -36,10 +36,16 @@ def upload_to(instance, full_filename):
     return UPLOAD_TO_FILE_TEMPLATE.format(model=model_name, filename=filename, ext=file_ext)
 
 
-def cached_model_property(model_method=None, **kwargs):
+def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
     """
     cached_model_property is a decorator for model functions that takes no arguments
     The function is converted into a property that support caching out of the box
+
+    :param readonly: set readonly parameter False to make the property writeable
+    :type readonly: bool
+    :param cache_timeout: number of seconds before cache expires
+    :type cache_timeout: int
+
     Sample usage:
 
     class Team(models.Model):
@@ -68,9 +74,6 @@ def cached_model_property(model_method=None, **kwargs):
     returns 88
     """
 
-    readonly = kwargs.get("readonly", True)
-    cache_timeout = kwargs.get("cache_timeout", None)
-
     def func(f):
         def _get_cache_key(obj):
             """
@@ -89,7 +92,7 @@ def cached_model_property(model_method=None, **kwargs):
             # If not cached, call the actual method and cache the result
             if result is None:
                 result = f(obj)
-                cache.set(cache_key, result)
+                cache.set(cache_key, result, cache_timeout)
             return result
 
         def del_x(obj):
@@ -304,11 +307,17 @@ class Choices(OrderedDict):
 
 class KeyValueContainer(dict):
 
-    def __init__(self, seq, separator="=", **kwargs):
+    def __init__(self, seq=None, separator="=", **kwargs):
         self.sep = separator
         if isinstance(seq, basestring):
             seq = self._parse_string(seq)
-        super(KeyValueContainer, self).__init__(seq, **kwargs)
+        if seq:
+            super(KeyValueContainer, self).__init__(seq, **kwargs)
+        else:
+            super(KeyValueContainer, self).__init__(**kwargs)
+        # Ensure all values are converted to strings
+        for key, value in self.iteritems():
+            self[key] = unicode(value)
 
     def __str__(self):
         result = []

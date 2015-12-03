@@ -1,26 +1,9 @@
-import os
-import sys
-import django
-from django.core.management import call_command
 from nose import tools
-
-app_path = os.path.join(
-    os.path.dirname(__file__),
-    "simple_app"
-)
-
-sys.path.insert(0, app_path)
-os.environ["DJANGO_SETTINGS_MODULE"] = "simple_app.settings"
-
-
-def setup():
-    django.setup()
-    call_command("migrate")
-    call_command("createcachetable")
+from time import sleep
+from sample.models import Team
 
 
 def test_cached_property():
-    from sample.models import Team
 
     team1 = Team.objects.create(name="Team1")
     team2 = Team.objects.create(name="Team2")
@@ -51,8 +34,6 @@ def test_cached_property():
 
 
 def test_writeable_cached_property():
-    from sample.models import Team
-
     team1 = Team.objects.create(name="Team1")
     team2 = Team.objects.create(name="Team2")
 
@@ -71,3 +52,13 @@ def test_writeable_cached_property():
     tools.assert_equal(team2.writable_cached_counter, 1)
     del team2.writable_cached_counter
     tools.assert_equal(team2.writable_cached_counter, 2)
+
+
+def test_cache_timeout():
+    team = Team(name="Team1")
+    tools.assert_equal(team.one_sec_cache, 1)
+    tools.assert_equal(team.one_sec_cache, 1)
+    tools.assert_equal(team.one_sec_cache, 1)
+    sleep(2)
+    tools.assert_equal(team.one_sec_cache, 2)
+    tools.assert_equal(team.one_sec_cache, 2)

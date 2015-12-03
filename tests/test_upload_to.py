@@ -1,5 +1,5 @@
 from nose import tools
-from common_app import model_helpers
+import model_helpers
 
 # Make the limit small for testing
 model_helpers.UPLOAD_TO_MAX_FILENAME_LEN = 10
