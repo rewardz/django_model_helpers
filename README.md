@@ -28,6 +28,8 @@ __Note:__f filename exceeds 40 character, it will be trimmedl.
 
 `cached_model_property` is a decorator for model functions that takes no arguments.
  The decorator convert the function into a property that support caching out of the box
+
+ __Note__: `cached_model_property` is totally different from django's `model_property` the later is not true caching but rather memorizing function's return value.
   
   __Sample usage:__
   
@@ -42,6 +44,10 @@ __Note:__f filename exceeds 40 character, it will be trimmedl.
             # get result
             return result
 
+        @cached_model_property(cache_timeout=1)
+        def one_second_cache(self):
+            # get result
+            return result
 Now try
 
     team = Team.objects.first()
@@ -200,3 +206,36 @@ __Example:__
     >>> CHOICES_EXAMPLE.get_value(0, "additional_key")
     1234
 
+
+### __model\_helpers.KeyValueField__
+
+Sometimes you need to have a simple key/value field. most developers would rely on `JsonField` which is good for some use cases but people using django admin may not like to modify json object that look like this  
+
+    {"key1": "value of some sort", "key2": "value containing \" character"}
+      
+`KeyValueField` serialize objects in a more readable way. the dictionary above would be stored and displayed like this.
+
+    key1 = value of some sort
+    key2 = value containing " character
+
+That's it.
+For you as a developer you will access your `KeyValueField` as a dictionary.  
+  
+__Example__:
+
+    class MyModel(models.Model):
+         options = KeyValueField(separator=":")
+
+    >> my_model.options = "key1 : val1 \n key2 : val2"
+    >> my_model.clean_fields()
+    >> my_model.options
+    {"key1": "val1", "key2": "val2"}
+    >>> str(my_model.options)
+    "key1 : val1 \n key2 : val2"
+
+You can find more examples in the test file `tests/test_key_value_field.py`
+
+__`KeyValueField` is NOT good for:__
+
+* Maintain original value's datatype. all values are converted to unicode strings
+* Store a multiline value
