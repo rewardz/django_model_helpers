@@ -1,6 +1,6 @@
 ## Model Helpers
 
-Model helpers are small collection of django functions that make working with models easier.
+Model helpers are small collection of django functions and classes that make working with models easier.
 All functions here are compliant with pylint and has test cases with 100% code coverage.
 This doc describe each of these helpers.
 
