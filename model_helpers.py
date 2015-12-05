@@ -365,11 +365,14 @@ class KeyValueField(models.TextField):
     """
     description = _("Key/Value dictionary field")
     empty_values = (None,)
+    # For Django <= 1.7
+    __metaclass__ = models.SubfieldBase
 
     def __init__(self, separator="=", *args, **kwargs):
         self.separator = separator
         super(KeyValueField, self).__init__(*args, **kwargs)
 
+    # For Django <= 1.7
     def to_python(self, value):
         """
         :type value: unicode
@@ -391,6 +394,11 @@ class KeyValueField(models.TextField):
         if value is None:
             return None
         return KeyValueContainer(value, separator=self.separator)
+
+    def get_prep_value(self, value):
+        if value is None:
+            return ""
+        return unicode(value)
 
     def deconstruct(self):
         name, path, args, kwargs = super(KeyValueField, self).deconstruct()

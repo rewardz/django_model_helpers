@@ -1,8 +1,7 @@
 import os
 import sys
 import django
-from django.core.management import call_command
-
+from django.core.management import call_command, CommandError
 
 app_path = os.path.join(
     os.path.dirname(__file__),
@@ -14,5 +13,10 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "simple_app.settings"
 
 django.setup()
 
-call_command("migrate")
+try:
+    call_command("syncdb")
+except CommandError:
+    # Django >= 1.9
+    call_command("migrate", "--run-syncdb")
+
 call_command("createcachetable")

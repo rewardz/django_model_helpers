@@ -227,7 +227,6 @@ __Example__:
          options = KeyValueField(separator=":")
 
     >> my_model.options = "key1 : val1 \n key2 : val2"
-    >> my_model.clean_fields()
     >> my_model.options
     {"key1": "val1", "key2": "val2"}
     >>> str(my_model.options)

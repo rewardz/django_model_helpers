@@ -7,11 +7,8 @@ def test_key_value_field():
     from model_helpers import KeyValueContainer
 
     team = Team(name="Team1")
-    team.full_clean()
-    team.save()
     test.assert_equal(team.options, {})
     team.options = "name = Ramast"
-    team.full_clean()
     test.assert_equal(team.options, {"name": "Ramast"})
     test.assert_equal(str(team.options), "name = Ramast\n")
     team.options = KeyValueContainer(Age=30)
@@ -26,23 +23,26 @@ def test_key_value_field():
     test.assert_in("Age = 30", str(team.options))
     test.assert_in("Name = Ramast", str(team.options))
     # Test invalid string
-    team.options = "Name ?? Ramast"
-    test.assert_raises(ValidationError, team.full_clean)
+    try:
+        team.options = "Name ?? Ramast"
+        assert False, "Assigning invalid string should raise ValidationError"
+    except ValidationError:
+        pass
 
 
 def test_custom_key_value_separator():
     team = Team(name="Team2")
-    team.full_clean()
-    team.save()
     # Modify option field's separator pragmatically for this test case
-    # Of course you should just define it in the model
+    # Of course you should just define it in the model's field definition
     # options = KeyValueField(sep=":")
     options_field = filter(lambda field: field.name == "options", team._meta.fields)[0]
     options_field.separator = ":"
     # Test invalid string
-    team.options = "Name = Ramast"
-    test.assert_raises(ValidationError, team.full_clean)
+    try:
+        team.options = "Name = Ramast"
+        assert False, "Assigning invalid string should raise ValidationError"
+    except ValidationError:
+        pass
     # Now use the new separator
     team.options = "Name : Ramast"
-    team.full_clean()
     test.assert_equal(team.options, {"Name": "Ramast"})
