@@ -21,7 +21,7 @@ __Sample usage:__
 
 uploaded images for this model will be stored in: `media/Profile/<current_year>/<slugified_original_filename>`.
 
-__Note:__f filename exceeds 40 character, it will be trimmedl.
+__Note:__ If filename exceeds 40 character, it will be trimmedl.
 
 
 ### cached\_model\_property decorator
@@ -29,7 +29,7 @@ __Note:__f filename exceeds 40 character, it will be trimmedl.
 `cached_model_property` is a decorator for model functions that takes no arguments.
  The decorator convert the function into a property that support caching out of the box
 
- __Note__: `cached_model_property` is totally different from django's `model_property` the later is not true caching but rather memorizing function's return value.
+ __Note__: `cached_model_property` is totally different from django's `cached_property` the later is not true caching but rather memorizing function's return value.
   
   __Sample usage:__
   
