@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from os import path as fs_path
+from time import strftime
 from django.utils.text import slugify
 from django.utils.translation import ugettext as _
 from django.core.cache import cache
@@ -33,7 +34,7 @@ def upload_to(instance, full_filename):
     if file_ext in UPLOAD_TO_BLACK_LISTED_EXTENSIONS:
         raise ValueError("File extension '%s' is not allowed" % file_ext)
     filename = slugify(filename)[:UPLOAD_TO_MAX_FILENAME_LEN]
-    return UPLOAD_TO_FILE_TEMPLATE.format(model=model_name, filename=filename, ext=file_ext)
+    return strftime(UPLOAD_TO_FILE_TEMPLATE).format(model=model_name, filename=filename, ext=file_ext)
 
 
 def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
