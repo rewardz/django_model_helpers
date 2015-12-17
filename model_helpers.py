@@ -1,3 +1,4 @@
+import datetime
 from django.core.exceptions import ValidationError
 from os import path as fs_path
 from django.utils.text import slugify
@@ -11,7 +12,7 @@ UPLOAD_TO_BLACK_LISTED_EXTENSIONS = [
     "php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"
 ]
 UPLOAD_TO_MAX_FILENAME_LEN = 40
-UPLOAD_TO_FILE_TEMPLATE = "{model}/%Y/{filename}.{ext}"
+UPLOAD_TO_FILE_TEMPLATE = "{model}/{year}/{month}/{day}/{filename}.{ext}"
 
 
 def upload_to(instance, full_filename):
@@ -20,8 +21,8 @@ def upload_to(instance, full_filename):
     It ensures file name is less than FILE_UPLOAD_MAX_FILENAME char also slugify the file and finally provide simple
     protection against uploading some harmful files like (php or python files)
 
-    File is saved in a folder called <model_name>/<current_year>/file_name.ext
-    example: User/2015/profile_pic.jpg
+    File is saved in a folder called <model_name>/<current_year>/<current_month>/<current_day>/file_name.ext
+    example: User/2015/12/31/profile_pic.jpg
 
     :param instance: model instance which the file is uploaded for
     :param full_filename: filename including its path
@@ -30,10 +31,18 @@ def upload_to(instance, full_filename):
     model_name = instance.__class__.__name__
     filename = fs_path.basename(full_filename).lower()
     filename, file_ext = filename.rsplit(".", 1)
+    today = datetime.date.today()
     if file_ext in UPLOAD_TO_BLACK_LISTED_EXTENSIONS:
         raise ValueError("File extension '%s' is not allowed" % file_ext)
     filename = slugify(filename)[:UPLOAD_TO_MAX_FILENAME_LEN]
-    return UPLOAD_TO_FILE_TEMPLATE.format(model=model_name, filename=filename, ext=file_ext)
+    return UPLOAD_TO_FILE_TEMPLATE.format(
+        model=model_name,
+        year=today.year,
+        month=today.month,
+        day=today.day,
+        filename=filename,
+        ext=file_ext
+    )
 
 
 def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
