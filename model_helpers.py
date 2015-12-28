@@ -4,37 +4,85 @@ from time import strftime
 from django.utils.text import slugify
 from django.utils.translation import ugettext as _
 from django.core.cache import cache
+from django.conf import settings
 from django.db import models
 from collections import OrderedDict
+try:
+    from django.utils.deconstruct import deconstructible
+except ImportError:
+    # for older versions of django, define a no-op decorator instead.
+    deconstructible = lambda old_class: old_class
+
+UPLOAD_TO_OPTIONS = {
+    "black_listed_extensions": ["php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"],
+    "max_filename_length": 40,
+    "file_name_template": "{model_name}/%Y/{filename}.{extension}"
+}
 
 
-UPLOAD_TO_BLACK_LISTED_EXTENSIONS = [
-    "php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"
-]
-UPLOAD_TO_MAX_FILENAME_LEN = 40
-UPLOAD_TO_FILE_TEMPLATE = "{model}/%Y/{filename}.{ext}"
-
-
-def upload_to(instance, full_filename):
+@deconstructible
+class UploadTo(object):
     """
-    This function passed as "upload_to" parameter for any FileField or ImageField
-    It ensures file name is less than FILE_UPLOAD_MAX_FILENAME char also slugify the file and finally provide simple
+    An instance of this class is passed as "upload_to" parameter for any FileField or ImageField
+    It ensures file name is less than "max_filename_length" char also slugify the filename and finally provide simple
     protection against uploading some harmful files like (php or python files)
 
     File is saved in a folder called <model_name>/<current_year>/file_name.ext
     example: User/2015/profile_pic.jpg
-
-    :param instance: model instance which the file is uploaded for
-    :param full_filename: filename including its path
-    :return: string
     """
-    model_name = instance.__class__.__name__
-    filename = fs_path.basename(full_filename).lower()
-    filename, file_ext = filename.rsplit(".", 1)
-    if file_ext in UPLOAD_TO_BLACK_LISTED_EXTENSIONS:
-        raise ValueError("File extension '%s' is not allowed" % file_ext)
-    filename = slugify(filename)[:UPLOAD_TO_MAX_FILENAME_LEN]
-    return strftime(UPLOAD_TO_FILE_TEMPLATE).format(model=model_name, filename=filename, ext=file_ext)
+
+    def __init__(self, **kwargs):
+        """
+        :param kwargs: You can override any of the default options by passing it as keyword argument to this function
+        :return:
+        """
+        self.options = UPLOAD_TO_OPTIONS.copy()
+        if hasattr(settings, "UPLOAD_TO_OPTIONS"):
+            self.options.update(settings.UPLOAD_TO_OPTIONS)
+        self.options.update(kwargs)
+
+    @staticmethod
+    def get_file_info(full_filename):
+        filename = fs_path.basename(full_filename).lower()
+        filename, file_ext = filename.rsplit(".", 1)
+        return {
+            "filename": filename,
+            "extension": file_ext,
+            "full_filename": full_filename
+        }
+
+    def validate_file_info(self, file_info):
+        file_ext = file_info["extension"]
+        if file_ext in self.options["black_listed_extensions"]:
+            raise ValueError("File extension '%s' is not allowed" % file_ext)
+
+    def generate_file_name(self, instance, file_info):
+        model_name = instance.__class__.__name__
+        filename = file_info["filename"]
+        max_len = self.options["max_filename_length"]
+        file_info["filename"] = slugify(filename)[:max_len]
+
+        return strftime(self.options["file_name_template"]).format(
+            model_name=model_name,
+            instance=instance,
+            **file_info
+        )
+
+    def __call__(self, instance, full_filename):
+        """
+        :param instance: model instance which the file is uploaded for
+        :param full_filename: filename including its path
+        :return: string
+        """
+        file_info = self.get_file_info(full_filename)
+        self.validate_file_info(file_info)
+        return self.generate_file_name(instance, file_info)
+
+
+# Shortcut for UploadTo class
+def upload_to(instance, full_filename):
+    upload_to_obj = UploadTo()
+    return upload_to_obj(instance, full_filename)
 
 
 def cached_model_property(model_method=None, readonly=True, cache_timeout=None):

@@ -14,7 +14,7 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "simple_app.settings"
 django.setup()
 
 try:
-    call_command("syncdb")
+    call_command("syncdb", "--noinput")
 except CommandError:
     # Django >= 1.9
     call_command("migrate", "--run-syncdb")
