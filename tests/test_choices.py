@@ -104,3 +104,11 @@ def test_errors():
     tools.assert_raises(TypeError, choices1.__setattr__, "X", 7)
     tools.assert_raises(TypeError, choices1.__setattr__, "X", 7)
     tools.assert_raises(TypeError, choices1.update, {"X": 7})
+
+def test_dir_method():
+    choices1 = model_helpers.Choices({"X": 1, "Y": 2})
+    tools.assert_in("X", dir(choices1))
+    tools.assert_in("Y", dir(choices1))
+    # parent attributes should also be mentioned
+    tools.assert_in("items", dir(choices1))
+

@@ -313,8 +313,7 @@ class Choices(OrderedDict):
         super(Choices, self).__setitem__(*args)
 
     def __dir__(self):
-        original = dir(super(Choices, self))
-        return self.keys() + original
+        return self.keys() + dir(self.__class__)
 
     def copy(self):
         new_self = Choices({}, order_by=self._order_by)
