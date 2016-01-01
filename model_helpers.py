@@ -312,6 +312,10 @@ class Choices(OrderedDict):
             raise TypeError("Choices are constants and can't be modified")
         super(Choices, self).__setitem__(*args)
 
+    def __dir__(self):
+        original = dir(super(Choices, self))
+        return self.keys() + original
+
     def copy(self):
         new_self = Choices({}, order_by=self._order_by)
         new_self.update(self)
