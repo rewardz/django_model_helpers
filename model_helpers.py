@@ -11,7 +11,8 @@ try:
     from django.utils.deconstruct import deconstructible
 except ImportError:
     # for older versions of django, define a no-op decorator instead.
-    deconstructible = lambda old_class: old_class
+    def deconstructible(old_class):
+        return old_class
 
 UPLOAD_TO_OPTIONS = {
     "black_listed_extensions": ["php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"],
