@@ -10,13 +10,17 @@ app_path = os.path.join(
 
 sys.path.insert(0, app_path)
 os.environ["DJANGO_SETTINGS_MODULE"] = "simple_app.settings"
+try:
+    django.setup()
+except AttributeError:
+        from django.db.models.loading import get_models
+        get_models()
 
-django.setup()
 
 try:
-    call_command("syncdb", "--noinput")
+    call_command("syncdb", interactive=False, verbosity=0)
 except CommandError:
     # Django >= 1.9
     call_command("migrate", "--run-syncdb")
 
-call_command("createcachetable")
+call_command("createcachetable", "cache")

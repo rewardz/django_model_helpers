@@ -2,11 +2,13 @@ from django.core.exceptions import ValidationError
 from os import path as fs_path
 from time import strftime
 from django.utils.text import slugify
+from django.utils import six
 from django.utils.translation import ugettext as _
 from django.core.cache import cache
 from django.conf import settings
 from django.db import models
 from collections import OrderedDict
+
 try:
     from django.utils.deconstruct import deconstructible
 except ImportError:
@@ -75,6 +77,7 @@ class UploadTo(object):
         :param full_filename: filename including its path
         :return: string
         """
+        full_filename = six.text_type(full_filename)
         file_info = self.get_file_info(full_filename)
         self.validate_file_info(file_info)
         return self.generate_file_name(instance, file_info)
@@ -128,7 +131,7 @@ def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
         def _get_cache_key(obj):
             """
             :type obj: django.db.models.Model
-            :rtype: basestring
+            :rtype: six.string_types
             """
             # getattr(obj, "_meta") is same as obj._meta but avoid the warning about accessing protected property
             model_name = getattr(obj, "_meta").db_table
@@ -273,7 +276,7 @@ class Choices(OrderedDict):
                  if key not found and raise_exception=False then None is returned
         """
         if self._choices_id is None:
-            self._choices_id = {item["id"]: (key, item) for key, item in self.iteritems()}
+            self._choices_id = {item["id"]: (key, item) for key, item in six.iteritems(self)}
 
         choice_name, choice = self._choices_id[choice_id]
         if choice_key is None:
@@ -314,7 +317,7 @@ class Choices(OrderedDict):
         super(Choices, self).__setitem__(*args)
 
     def __dir__(self):
-        return self.keys() + dir(self.__class__)
+        return list(self.keys()) + dir(self.__class__)
 
     def copy(self):
         new_self = Choices({}, order_by=self._order_by)
@@ -359,22 +362,21 @@ class Choices(OrderedDict):
 
 
 class KeyValueContainer(dict):
-
     def __init__(self, seq=None, separator="=", **kwargs):
         self.sep = separator
-        if isinstance(seq, basestring):
+        if isinstance(seq, six.string_types):
             seq = self._parse_string(seq)
         if seq:
             super(KeyValueContainer, self).__init__(seq, **kwargs)
         else:
             super(KeyValueContainer, self).__init__(**kwargs)
         # Ensure all values are converted to strings
-        for key, value in self.iteritems():
-            self[key] = unicode(value)
+        for key, value in six.iteritems(self):
+            self[key] = six.text_type(value)
 
     def __str__(self):
         result = []
-        for key, val in self.iteritems():
+        for key, val in six.iteritems(self):
             result.append(u"%s %s %s" % (key, self.sep, val))
         return u"\n".join(result) + "\n"
 
@@ -418,43 +420,172 @@ class KeyValueField(models.TextField):
     """
     description = _("Key/Value dictionary field")
     empty_values = (None,)
-    # For Django <= 1.7
-    __metaclass__ = models.SubfieldBase
 
     def __init__(self, separator="=", *args, **kwargs):
         self.separator = separator
         super(KeyValueField, self).__init__(*args, **kwargs)
 
-    # For Django <= 1.7
-    def to_python(self, value):
-        """
-        :type value: unicode
-        :return: dictionary or - in case of null - return None
-        :rtype: KeyValueContainer|None
-        """
-        if isinstance(value, KeyValueField) or isinstance(value, dict):
-            return value
+    def contribute_to_class(self, cls, name, **kwargs):
+        super(KeyValueField, self).contribute_to_class(cls, name, **kwargs)
+        setattr(cls, name, property(fget=self.get_value, fset=self.set_value))
 
-        if value is None:
-            return value
+    def set_value(self, obj, value):
+        if isinstance(value, six.string_types):
+            value = self.from_db_value(value)
+        obj.__dict__[self.name] = value
 
-        try:
-            return KeyValueContainer(value, separator=self.separator)
-        except ValueError as e:
-            raise ValidationError(e.message)
+    def get_value(self, obj):
+        return obj.__dict__[self.name]
 
     def from_db_value(self, value, *args, **kwargs):
         if value is None:
             return None
-        return KeyValueContainer(value, separator=self.separator)
+        if isinstance(value, (OrderedDict, dict)):
+            return value
+        try:
+            return KeyValueContainer(value, separator=self.separator)
+        except ValueError as e:
+            raise ValidationError(e)
 
     def get_prep_value(self, value):
         if value is None:
             return ""
-        return unicode(value)
+        return six.text_type(value)
 
     def deconstruct(self):
         name, path, args, kwargs = super(KeyValueField, self).deconstruct()
         if self.separator != "=":
             kwargs["separator"] = self.separator
         return name, path, args, kwargs
+
+
+class SimpleGenericForeignKey(models.BigIntegerField):
+    _model_info_by_id = {}
+    _model_info_by_name = {}
+
+    description = "Simple generic foreign key"
+    default_error_messages = {
+        "not_registered": "Model %(class)s is not registered,\n"
+                          "did you forget adding @SimpleGenericForeignKey.register_generic_model"
+    }
+
+    def __init__(self, *args, **kwargs):
+        kwargs["unique"] = True
+        super(SimpleGenericForeignKey, self).__init__(*args, **kwargs)
+        if self.ModelClassLookup:
+            self.register_lookup(self.ModelClassLookup)
+
+    @classmethod
+    def register_generic_model(cls, index):
+
+        def decorator(model_class):
+            assert issubclass(model_class, models.Model), "%s is not a django Model" % cls.__name__
+            name_index = cls._model_info_by_name
+            id_index = cls._model_info_by_id
+            model_name = model_class.__name__.lower()
+
+            assert index < 256, "Model can't be assigned a number bigger than 255"
+
+            assert index not in id_index, "Index %d is already defined for class %s " % (index, id_index[index]["name"])
+            assert model_name not in name_index, "Model %s is already defined" % name_index[model_name]["name"]
+
+            model_info = {
+                "name": model_class.__name__,
+                "class": model_class,
+                "id": index
+            }
+            id_index[index] = name_index[model_name] = model_info
+            return model_class
+
+        return decorator
+
+    @classmethod
+    def get_model_info(cls, selector):
+        if isinstance(selector, int):
+            return cls._model_info_by_id[selector]
+        try:
+            if issubclass(selector, models.Model):
+                selector = selector.__name__
+        except TypeError:
+            if isinstance(selector, models.Model):
+                selector = selector.__class__.__name__
+        if isinstance(selector, six.string_types):
+            try:
+                return cls._model_info_by_name[selector.lower()]
+            except KeyError:
+                raise ValidationError(
+                    cls.default_error_messages['not_registered'],
+                    code='not_registered',
+                    params={'class': selector})
+        raise ValueError("Invalid selector %s " % selector)
+
+    @classmethod
+    def get_model_value(cls, instance):
+        try:
+            return cls.get_model_info(instance.__class__)["id"]
+        except KeyError:
+            raise ValidationError(
+                cls.default_error_messages['not_registered'],
+                code='not_registered',
+                params={'class': instance.__class__.__name__})
+
+    def from_db_value(self, value, *args, **kwargs):
+        if value is None:
+            return value
+        model_value = value & 255
+        model_id = value >> 8
+        model_class = self.get_model_info(model_value)["class"]
+        return model_class.objects.get(pk=model_id)
+
+    def get_prep_value(self, value):
+        if value is None or isinstance(value, int):
+            return value
+        if isinstance(value, six.string_types):
+            return int(value)
+        if isinstance(value, (tuple, list)):
+            assert len(value) == 2, "Tuple/List must contain exactly two values class, id"
+            model_class, inst_id = value
+            model_value = self.get_model_info(model_class)["id"]
+        else:
+            assert isinstance(value, models.Model), "Not a django model object"
+            model_value = self.get_model_value(value)
+            inst_id = value.pk
+        result = inst_id
+        result <<= 8
+        result |= model_value
+        return result
+
+    def contribute_to_class(self, cls, name, **kwargs):
+        super(SimpleGenericForeignKey, self).contribute_to_class(cls, name, **kwargs)
+        setattr(cls, name, property(fget=self.get_value, fset=self.set_value))
+
+    def set_value(self, obj, value):
+        obj.__dict__[self.name] = value
+
+    def get_value(self, obj):
+        value = obj.__dict__[self.name]
+        if value is None or isinstance(value, models.Model):
+            return value
+        # If value is integer, means I have to perform DB query to get the corresponding object
+        # I save the object to avoid executing more db queries when calling accessing it accessing it again
+        obj.__dict__[self.name] = self.from_db_value(value)
+        return obj.__dict__[self.name]
+
+    def get_prep_lookup(self, lookup_type, value):
+        if lookup_type == "class":
+            return self.get_model_info(value)["id"]
+        return self.get_prep_value(value)
+
+    # Older versions of django don't support Lookup class
+    if hasattr(models, "Lookup"):
+
+        class ModelClassLookup(models.Lookup):
+            lookup_name = 'class'
+
+            def as_sql(self, compiler, connection):
+                lhs, lhs_params = self.process_lhs(compiler, connection)
+                rhs, rhs_params = self.process_rhs(compiler, connection)
+                params = lhs_params + rhs_params
+                return '%s & 255 = %s' % (lhs, rhs), params
+    else:
+            ModelClassLookup = None
