@@ -463,7 +463,6 @@ class SimpleGenericForeignKey(models.BigIntegerField):
     description = "Simple generic foreign key"
 
     def __init__(self, *args, **kwargs):
-        kwargs["unique"] = True
         super(SimpleGenericForeignKey, self).__init__(*args, **kwargs)
         if self.ModelClassLookup:
             self.register_lookup(self.ModelClassLookup)
