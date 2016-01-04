@@ -438,10 +438,6 @@ class KeyValueField(models.TextField):
         return obj.__dict__[self.name]
 
     def from_db_value(self, value, *args, **kwargs):
-        if value is None:
-            return None
-        if isinstance(value, (OrderedDict, dict)):
-            return value
         try:
             return KeyValueContainer(value, separator=self.separator)
         except ValueError as e:
@@ -460,14 +456,11 @@ class KeyValueField(models.TextField):
 
 
 class SimpleGenericForeignKey(models.BigIntegerField):
+    INSTANCE_FIELD_NAME = "_%s__generic_key__instance"
     _model_info_by_id = {}
-    _model_info_by_name = {}
+    _model_info_by_class = {}
 
     description = "Simple generic foreign key"
-    default_error_messages = {
-        "not_registered": "Model %(class)s is not registered,\n"
-                          "did you forget adding @SimpleGenericForeignKey.register_generic_model"
-    }
 
     def __init__(self, *args, **kwargs):
         kwargs["unique"] = True
@@ -480,21 +473,21 @@ class SimpleGenericForeignKey(models.BigIntegerField):
 
         def decorator(model_class):
             assert issubclass(model_class, models.Model), "%s is not a django Model" % cls.__name__
-            name_index = cls._model_info_by_name
+            class_index = cls._model_info_by_class
             id_index = cls._model_info_by_id
-            model_name = model_class.__name__.lower()
 
             assert index < 256, "Model can't be assigned a number bigger than 255"
 
-            assert index not in id_index, "Index %d is already defined for class %s " % (index, id_index[index]["name"])
-            assert model_name not in name_index, "Model %s is already defined" % name_index[model_name]["name"]
+            assert index not in id_index,\
+                "Index %d is already defined for class %s " % (index, id_index[index]["class"])
+            assert model_class not in class_index,\
+                "Class %s was defined twice? how could that happen" % repr(model_class)
 
             model_info = {
-                "name": model_class.__name__,
                 "class": model_class,
                 "id": index
             }
-            id_index[index] = name_index[model_name] = model_info
+            id_index[index] = class_index[model_class] = model_info
             return model_class
 
         return decorator
@@ -503,80 +496,89 @@ class SimpleGenericForeignKey(models.BigIntegerField):
     def get_model_info(cls, selector):
         if isinstance(selector, int):
             return cls._model_info_by_id[selector]
-        try:
-            if issubclass(selector, models.Model):
-                selector = selector.__name__
-        except TypeError:
-            if isinstance(selector, models.Model):
-                selector = selector.__class__.__name__
+        if isinstance(selector, models.Model):
+            selector = selector.__class__
         if isinstance(selector, six.string_types):
-            try:
-                return cls._model_info_by_name[selector.lower()]
-            except KeyError:
-                raise ValidationError(
-                    cls.default_error_messages['not_registered'],
-                    code='not_registered',
-                    params={'class': selector})
-        raise ValueError("Invalid selector %s " % selector)
-
-    @classmethod
-    def get_model_value(cls, instance):
+            for model_class in cls._model_info_by_class:
+                if model_class.__name__ == selector:
+                    selector = model_class
+                    break
+            else:
+                raise cls.NotRegistered(model_class=selector)
+        assert issubclass(selector, models.Model), "Invalid selector %s " % selector
         try:
-            return cls.get_model_info(instance.__class__)["id"]
+            return cls._model_info_by_class[selector]
         except KeyError:
-            raise ValidationError(
-                cls.default_error_messages['not_registered'],
-                code='not_registered',
-                params={'class': instance.__class__.__name__})
+            raise cls.NotRegistered(model_class=selector)
 
-    def from_db_value(self, value, *args, **kwargs):
+    def get_int(self, obj):
+        return obj.__dict__[self.name]
+
+    def set_int(self, obj, value):
+        if isinstance(value, models.Model):
+            return self.set_obj(obj, value)
+        value = self.any_value_to_int(value)
+        if self.name in obj.__dict__ and value == self.get_int(obj):
+            return
+        obj.__dict__[self.INSTANCE_FIELD_NAME % self.name] = None
+        obj.__dict__[self.name] = value
+
+    def get_obj(self, obj):
+        instance = obj.__dict__.get(self.INSTANCE_FIELD_NAME % self.name, None)
+        if instance:
+            return instance
+        value = self.get_int(obj)
         if value is None:
             return value
         model_value = value & 255
-        model_id = value >> 8
+        inst_id = value >> 8
         model_class = self.get_model_info(model_value)["class"]
-        return model_class.objects.get(pk=model_id)
+        instance = model_class.objects.get(pk=inst_id)
+        obj.__dict__[self.INSTANCE_FIELD_NAME % self.name] = instance
+        return instance
 
-    def get_prep_value(self, value):
+    def set_obj(self, obj, value):
+        assert isinstance(value, models.Model), "Object must be instance of Model"
+        int_value = self.any_value_to_int(value)
+        obj.__dict__[self.INSTANCE_FIELD_NAME % self.name] = value
+        obj.__dict__[self.name] = int_value
+
+    def get_class(self, obj):
+        value = self.get_int(obj)
+        if value is None:
+            return value
+        class_index = value & 255
+        return self.get_model_info(class_index)["class"]
+
+    def any_value_to_int(self, value):
         if value is None or isinstance(value, int):
             return value
-        if isinstance(value, six.string_types):
-            return int(value)
         if isinstance(value, (tuple, list)):
             assert len(value) == 2, "Tuple/List must contain exactly two values class, id"
             model_class, inst_id = value
-            model_value = self.get_model_info(model_class)["id"]
-        else:
-            assert isinstance(value, models.Model), "Not a django model object"
-            model_value = self.get_model_value(value)
+            model_index = self.get_model_info(model_class)["id"]
+        elif isinstance(value, models.Model):
+            model_index = self.get_model_info(value)["id"]
             inst_id = value.pk
-        result = inst_id
+        else:
+            raise ValidationError("Invalid value %s" % value)
+        result = int(inst_id)
         result <<= 8
-        result |= model_value
+        result |= model_index
         return result
 
     def contribute_to_class(self, cls, name, **kwargs):
         super(SimpleGenericForeignKey, self).contribute_to_class(cls, name, **kwargs)
-        setattr(cls, name, property(fget=self.get_value, fset=self.set_value))
-
-    def set_value(self, obj, value):
-        obj.__dict__[self.name] = value
-
-    def get_value(self, obj):
-        value = obj.__dict__[self.name]
-        if value is None or isinstance(value, models.Model):
-            return value
-        # If value is integer, means I have to perform DB query to get the corresponding object
-        # I save the object to avoid executing more db queries when calling accessing it accessing it again
-        obj.__dict__[self.name] = self.from_db_value(value)
-        return obj.__dict__[self.name]
+        setattr(cls, name, property(fget=self.get_int, fset=self.set_int))
+        setattr(cls, "%s__obj" % name, property(fget=self.get_obj))
+        setattr(cls, "%s__class" % name, property(fget=self.get_class))
 
     def get_prep_lookup(self, lookup_type, value):
         if lookup_type == "class":
             return self.get_model_info(value)["id"]
-        return self.get_prep_value(value)
+        return self.any_value_to_int(value)
 
-    # Older versions of django don't support Lookup class
+    # Older versions of django don't support custom Lookup class
     if hasattr(models, "Lookup"):
 
         class ModelClassLookup(models.Lookup):
@@ -589,3 +591,11 @@ class SimpleGenericForeignKey(models.BigIntegerField):
                 return '%s & 255 = %s' % (lhs, rhs), params
     else:
             ModelClassLookup = None
+
+    class NotRegistered(ValidationError):
+
+        def __init__(self, model_class, *args, **kwargs):
+            kwargs["code"] = 'not_registered'
+            kwargs["message"] = "Model {} is not registered,\ndid you forget adding " \
+                                "@SimpleGenericForeignKey.register_generic_model".format(model_class)
+            super(self.__class__, self).__init__(*args, **kwargs)
