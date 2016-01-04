@@ -44,7 +44,10 @@ def test_generic_foreign_key():
     tools.assert_equal(ModelX.objects.get(link=(ModelB, 1)).link__obj, instance_b)
     # Filter by Model name/ instance id tuple
     tools.assert_equal(ModelX.objects.get(link=("ModelA", 1)).link__obj, instance_a)
-    tools.assert_equal(ModelX.objects.get(link=("ModelB", 1)).link__obj, instance_b)
+    tools.assert_equal(ModelX.objects.get(link=("ModelB", "1")).link__obj, instance_b)
+    # Filter by String
+    tools.assert_equal(ModelX.objects.get(link="ModelA+1").link__obj, instance_a)
+    tools.assert_equal(ModelX.objects.get(link="ModelB+1").link__obj, instance_b)
     # Filter by null should behave normally
     tools.assert_equal(ModelX.objects.filter(link__isnull=True)[0].link__obj, None)
     tools.assert_equal(ModelX.objects.filter(link__isnull=True).count(), 2)

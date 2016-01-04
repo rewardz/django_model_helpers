@@ -552,6 +552,10 @@ class SimpleGenericForeignKey(models.BigIntegerField):
     def any_value_to_int(self, value):
         if value is None or isinstance(value, int):
             return value
+        elif isinstance(value, six.string_types):
+            if value.count("+") != 1:
+                raise ValidationError("Invalid string %s, must be ModelName+instance_id", params=repr(value))
+            value = value.split("+")
         if isinstance(value, (tuple, list)):
             assert len(value) == 2, "Tuple/List must contain exactly two values class, id"
             model_class, inst_id = value
