@@ -5,14 +5,13 @@ from django.utils import six
 
 
 def test_key_value_field():
-    from model_helpers import KeyValueContainer
 
     team = Team(name="Team1")
     test.assert_equal(team.options, {})
     team.options = "name = Ramast"
     test.assert_equal(team.options, {"name": "Ramast"})
     test.assert_equal(str(team.options), "name = Ramast\n")
-    team.options = KeyValueContainer(Age=30)
+    team.options = {"Age": 30}
     test.assert_equal(str(team.options), "Age = 30\n")
     # Notice int has been converted to string since we don't store value data type
     test.assert_equal(team.options, {"Age": "30"})

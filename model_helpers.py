@@ -362,23 +362,31 @@ class Choices(OrderedDict):
 
 
 class KeyValueContainer(dict):
+
     def __init__(self, seq=None, separator="=", **kwargs):
+        super(KeyValueContainer, self).__init__()
         self.sep = separator
         if isinstance(seq, six.string_types):
             seq = self._parse_string(seq)
-        if seq:
-            super(KeyValueContainer, self).__init__(seq, **kwargs)
-        else:
-            super(KeyValueContainer, self).__init__(**kwargs)
-        # Ensure all values are converted to strings
-        for key, value in six.iteritems(self):
-            self[key] = six.text_type(value)
+        if seq is not None:
+            seq = dict(seq)
+            kwargs.update(seq)
+
+        for key, value in six.iteritems(kwargs):
+            self.__setitem__(key, value)
 
     def __str__(self):
         result = []
         for key, val in six.iteritems(self):
             result.append(u"%s %s %s" % (key, self.sep, val))
         return u"\n".join(result) + "\n"
+
+    def __setitem__(self, key, item):
+        if item is None:
+            item = ""
+        else:
+            item = six.text_type(item)
+        super(KeyValueContainer, self).__setitem__(key, item)
 
     def __unicode__(self):
         return self.__str__()
@@ -432,6 +440,8 @@ class KeyValueField(models.TextField):
     def set_value(self, obj, value):
         if isinstance(value, six.string_types):
             value = self.from_db_value(value)
+        elif not isinstance(value, KeyValueContainer):
+            value = KeyValueContainer(value)
         obj.__dict__[self.name] = value
 
     def get_value(self, obj):
