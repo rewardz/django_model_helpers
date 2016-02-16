@@ -62,3 +62,11 @@ def test_cache_timeout():
     sleep(2)
     tools.assert_equal(team.one_sec_cache, 2)
     tools.assert_equal(team.one_sec_cache, 2)
+
+    # test default cache timeout (we set it to 3 seconds)
+    team = Team(name="Team1")
+    del team.cached_counter
+    tools.assert_equal(team.cached_counter, 1)
+    tools.assert_equal(team.cached_counter, 1)
+    sleep(4)
+    tools.assert_equal(team.cached_counter, 2)

@@ -145,7 +145,7 @@ def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
             # If not cached, call the actual method and cache the result
             if result is None:
                 result = f(obj)
-                cache.set(cache_key, result, cache_timeout)
+                set_x(obj, result)
             return result
 
         def del_x(obj):
@@ -166,7 +166,10 @@ def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
             """
             cache_key = _get_cache_key(obj)
             # Save that key in the cache
-            cache.set(cache_key, value, cache_timeout)
+            if cache_timeout is None:
+                cache.set(cache_key, value)
+            else:
+                cache.set(cache_key, value, cache_timeout)
 
         if readonly:
             return property(fget=get_x, fdel=del_x)
