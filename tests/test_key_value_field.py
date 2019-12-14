@@ -1,7 +1,8 @@
+import six
+
 from nose import tools as test
 from sample.models import Team
 from django.core.exceptions import ValidationError
-from django.utils import six
 
 
 def test_key_value_field():

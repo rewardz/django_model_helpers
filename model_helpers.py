@@ -1,8 +1,9 @@
+import six
+
 from django.core.exceptions import ValidationError
 from os import path as fs_path
 from time import strftime
 from django.utils.text import slugify
-from django.utils import six
 from django.utils.translation import ugettext as _
 from django.core.cache import cache
 from django.conf import settings
