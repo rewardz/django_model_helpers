@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from model_helpers import cached_model_property, KeyValueField
 
 
@@ -25,4 +24,3 @@ class Team(models.Model):
     def one_sec_cache(self):
         self.counter += 1
         return self.counter
-

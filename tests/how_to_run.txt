@@ -1,5 +1,0 @@
-If you are in the root directory of the package, you can run.
-
-pip install nose
-nosetests tests
-
