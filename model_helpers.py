@@ -1,21 +1,14 @@
-import six
-
-from django.core.exceptions import ValidationError
 from os import path as fs_path
 from time import strftime
+from collections import OrderedDict
+from django.core.exceptions import ValidationError
 from django.utils.text import slugify
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.core.cache import cache
 from django.conf import settings
 from django.db import models
-from collections import OrderedDict
 
-try:
-    from django.utils.deconstruct import deconstructible
-except ImportError:
-    # for older versions of django, define a no-op decorator instead.
-    def deconstructible(old_class):
-        return old_class
+from django.utils.deconstruct import deconstructible
 
 UPLOAD_TO_OPTIONS = {
     "black_listed_extensions": ["php", "html", "htm", "js", "vbs", "py", "pyc", "asp", "aspx", "pl"],
@@ -25,7 +18,7 @@ UPLOAD_TO_OPTIONS = {
 
 
 @deconstructible
-class UploadTo(object):
+class UploadTo:
     """
     An instance of this class is passed as "upload_to" parameter for any FileField or ImageField
     It ensures file name is less than "max_filename_length" char also slugify the filename and finally provide simple
@@ -78,7 +71,6 @@ class UploadTo(object):
         :param full_filename: filename including its path
         :return: string
         """
-        full_filename = six.text_type(full_filename)
         file_info = self.get_file_info(full_filename)
         self.validate_file_info(file_info)
         return self.generate_file_name(instance, file_info)
@@ -128,42 +120,33 @@ def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
     returns 88
     """
 
-    def func(f):
-        def _get_cache_key(obj):
-            """
-            :type obj: django.db.models.Model
-            :rtype: six.string_types
-            """
-            # getattr(obj, "_meta") is same as obj._meta but avoid the warning about accessing protected property
+    def func(original_func):
+        def _get_cache_key(obj: "models.Model") -> str:
             model_name = getattr(obj, "_meta").db_table
-            method_name = f.__name__
+            method_name = original_func.__name__
             return "%s.%s.%s" % (model_name, obj.pk, method_name)
 
-        def get_x(obj):
+        def get_x(obj: "models.Model"):
             # Try to get the cache key for that method
             cache_key = _get_cache_key(obj)
             result = cache.get(cache_key)
             # If not cached, call the actual method and cache the result
             if result is None:
-                result = f(obj)
+                result = original_func(obj)
                 set_x(obj, result)
             return result
 
-        def del_x(obj):
+        def del_x(obj: "models.Model") -> None:
             """
             Remove that property from the cache
-            :param obj:
-            :return: None
             """
             cache_key = _get_cache_key(obj)
             # Remove that key from the cache
             cache.delete(cache_key)
 
-        def set_x(obj, value):
+        def set_x(obj: "models.Model", value) -> None:
             """
             Set the cache value of that property
-            :param obj:
-            :return: None
             """
             cache_key = _get_cache_key(obj)
             # Save that key in the cache
@@ -174,8 +157,7 @@ def cached_model_property(model_method=None, readonly=True, cache_timeout=None):
 
         if readonly:
             return property(fget=get_x, fdel=del_x)
-        else:
-            return property(fget=get_x, fset=set_x, fdel=del_x)
+        return property(fget=get_x, fset=set_x, fdel=del_x)
 
     # model_method is passed when using @cached_model_property
     if model_method:
@@ -230,7 +212,7 @@ class Choices(OrderedDict):
         self._read_only = False
 
         # Initialize parent dict with the choices provided by the user
-        super(Choices, self).__init__(choices)
+        super().__init__(choices)
         self._choices = _choices = []
         self._order_by = order_by
 
@@ -280,15 +262,14 @@ class Choices(OrderedDict):
                  if key not found and raise_exception=False then None is returned
         """
         if self._choices_id is None:
-            self._choices_id = {item["id"]: (key, item) for key, item in six.iteritems(self)}
+            self._choices_id = {item["id"]: (key, item) for key, item in self.items()}
 
         choice_name, choice = self._choices_id[choice_id]
         if choice_key is None:
             return choice_name
-        elif raise_exception:
+        if raise_exception:
             return choice[choice_key]
-        else:
-            return choice.get(choice_key)
+        return choice.get(choice_key)
 
     def get_code_name(self, choice_id):
         """
@@ -313,12 +294,12 @@ class Choices(OrderedDict):
     def __setattr__(self, attr, *args):
         if self._read_only and attr in self:
             raise TypeError("Choices are constants and can't be modified")
-        super(Choices, self).__setattr__(attr, *args)
+        super().__setattr__(attr, *args)
 
     def __setitem__(self, *args):
         if self._read_only:
             raise TypeError("Choices are constants and can't be modified")
-        super(Choices, self).__setitem__(*args)
+        super().__setitem__(*args)
 
     def __dir__(self):
         return list(self.keys()) + dir(self.__class__)
@@ -349,7 +330,7 @@ class Choices(OrderedDict):
         self._choices += (new_data())
         self._choices_id = None
 
-        super(Choices, self).update(new_data)
+        super().update(new_data)
 
     def __enter__(self):
         return self
@@ -368,32 +349,29 @@ class Choices(OrderedDict):
 class KeyValueContainer(dict):
 
     def __init__(self, seq=None, separator="=", **kwargs):
-        super(KeyValueContainer, self).__init__()
+        super().__init__()
         self.sep = separator
-        if isinstance(seq, six.string_types):
+        if isinstance(seq, str):
             seq = self._parse_string(seq)
         if seq is not None:
             seq = dict(seq)
             kwargs.update(seq)
 
-        for key, value in six.iteritems(kwargs):
+        for key, value in kwargs.items():
             self.__setitem__(key, value)
 
     def __str__(self):
         result = []
-        for key, val in six.iteritems(self):
-            result.append(u"%s %s %s" % (key, self.sep, val))
-        return u"\n".join(result) + "\n"
+        for key, val in self.items():
+            result.append("%s %s %s" % (key, self.sep, val))
+        return "\n".join(result) + "\n"
 
     def __setitem__(self, key, item):
         if item is None:
             item = ""
         else:
-            item = six.text_type(item)
-        super(KeyValueContainer, self).__setitem__(key, item)
-
-    def __unicode__(self):
-        return self.__str__()
+            item = str(item)
+        super().__setitem__(key, item)
 
     def _parse_string(self, value):
         result = {}
@@ -435,14 +413,14 @@ class KeyValueField(models.TextField):
 
     def __init__(self, separator="=", *args, **kwargs):
         self.separator = separator
-        super(KeyValueField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def contribute_to_class(self, cls, name, **kwargs):
-        super(KeyValueField, self).contribute_to_class(cls, name, **kwargs)
+        super().contribute_to_class(cls, name, **kwargs)
         setattr(cls, name, property(fget=self.get_value, fset=self.set_value))
 
     def set_value(self, obj, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = self.from_db_value(value)
         elif not isinstance(value, KeyValueContainer):
             value = KeyValueContainer(value)
@@ -454,16 +432,16 @@ class KeyValueField(models.TextField):
     def from_db_value(self, value, *args, **kwargs):
         try:
             return KeyValueContainer(value, separator=self.separator)
-        except ValueError as e:
-            raise ValidationError(e)
+        except ValueError as excp:
+            raise ValidationError(excp)
 
     def get_prep_value(self, value):
         if value is None:
             return ""
-        return six.text_type(value)
+        return str(value)
 
     def deconstruct(self):
-        name, path, args, kwargs = super(KeyValueField, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         if self.separator != "=":
             kwargs["separator"] = self.separator
         return name, path, args, kwargs
