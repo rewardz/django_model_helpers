@@ -1,17 +1,22 @@
-**Model helpers** are small collection of django functions and classes that make working with models easier. All functions here are compliant with pylint and has test cases with over 95% code coverage. This doc describe each of these helpers.
+**Model helpers** are small collection of django functions and classes that make working with models easier.
+All functions here are compliant with pylint and has test cases with over 95% code coverage.
+This doc describe each of these helpers.
 
 upload_to_
   Pass this function to your `FileField` as `upload_to` argument
 
 cached_model_property_
-  Decorate a model function with that decorator to cache function's result
+  Decorate a model function with that decorator to turn it into a property that caches the result.
+
+cached_function_
+  Decorate any function or class method with that decorator to enable out of the box caching.
 
 Choices_
   A feature rich solution for implementing choice field
 
 KeyValueField_
   A field that can store multiple key/value entries in a human readable form
-  
+
 .. _upload_to:
 
 **model\_helpers.upload\_to**
@@ -131,6 +136,32 @@ In this case the assigned value will replace the value stored in the cache
 ``team.editable_points`` returns 88
 
 I personally don't use the writable cached property option but might be useful to someone else
+
+.. _cached_function:
+
+cached_function decorator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``cached_function`` is a decorator for any functions.
+The decorator automatically cache function's result for a defined amount of time.
+The caching takes into account function arguments and *- for class methods -* class properties.
+
+**Sample Usage:**
+
+::
+
+    class ExampleClass:
+
+        example_field = 0
+
+        @cached_function(cache_timeout=1, key_parameters=["arg_a", "arg_b"], key_class_attrs=["example_field"])
+        def example_function(self, arg_a, arg_b, print_result=False):
+            if print_result:
+                print("Result is ", arg_a + arg_b)
+            return arg_a + arg_b
+
+This output from ``example_function`` will be cached for exactly `1` second.
+The cache would depend on value of function's ``arg_a`` and ``arg_b`` parameters and class's ``example_field`` value.
 
 .. _Choices:
 
