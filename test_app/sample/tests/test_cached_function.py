@@ -16,8 +16,10 @@ class ExampleClass:
         return arg_a + arg_b
 
     @cached_function(cache_timeout=1, key_parameters=["arg_a", "arg_b"], key_class_attrs=["example_field"])
-    def cached_func2(self, arg_a, arg_b):
+    def cached_func2(self, arg_a, arg_b, print_status=True):
         self.func2_call_counter += 1
+        if print_status:
+            print("Function is executed")
         return arg_a + arg_b
 
     @classmethod

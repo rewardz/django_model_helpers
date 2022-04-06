@@ -93,6 +93,7 @@ cached_model_property decorator
 ``cached_model_property`` is a decorator for model functions that takes no arguments. The decorator convert the function into a property that support caching out of the box
 
 **Note**: ``cached_model_property`` is totally different from django's ``cached_property`` the later is not true caching but rather memorizing function's return value.
+``cache_timeout``: number of seconds before cache expires.
 
 **Sample usage:**
 
@@ -145,6 +146,10 @@ cached_function decorator
 ``cached_function`` is a decorator for any functions.
 The decorator automatically cache function's result for a defined amount of time.
 The caching takes into account function arguments and *- for class methods -* class properties.
+
+``cache_timeout``: number of seconds before cache expires.
+``key_parameters``: Function parameters which the cached value depends on
+``key_class_attrs``: Class attributes which the cached value depends on
 
 **Sample Usage:**
 
