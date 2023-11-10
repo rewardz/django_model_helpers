@@ -15,7 +15,7 @@ class Choices:
     Example usage:
 
     class FruitChoices(model_helpers.Choices2):
-        BERRY = {"display": "strawberry", "value": 1, "extra_key": "extra_value"}
+        BERRY = {"display": "strawberry", "id": 1, "extra_key": "extra_value"}
         BANANA = 2
         WATER_MELON = 3
         x = "unrelated attr" # this will be ignored because its not in upper case
@@ -35,7 +35,7 @@ class Choices:
             return attr_value
 
         if item in self._choices:
-            return attr_value["value"]
+            return attr_value["id"]
         return attr_value
 
     @classmethod
@@ -55,24 +55,26 @@ class Choices:
                 continue
             attr_name: str
             if not isinstance(attr_value, dict):
-                attr_value =  {"value": attr_value, "display": attr_name.replace("_", " ").capitalize()}
+                attr_value =  {"id": attr_value}
+            if "display" not in attr_value:
+                attr_value["display"] = attr_name.replace("_", " ").capitalize()
 
             attr_value["name"] = attr_name
-            choice_value = attr_value["value"]
+            choice_id = attr_value["id"]
             self._choices[attr_name] = attr_value
-            if choice_value in self._choices_by_id:
+            if choice_id in self._choices_by_id:
                 raise ValueError(
-                    "Duplicate choice value {choice_value} for {choice_name} and {choice_name2}".format(
-                        choice_value=choice_value,
+                    "Duplicate choice id {choice_id} for {choice_name} and {choice_name2}".format(
+                        choice_id=choice_id,
                         choice_name=attr_name,
-                        choice_name2=self._choices_by_id[choice_value]["name"],
+                        choice_name2=self._choices_by_id[choice_id]["name"],
                     )
                 )
-            self._choices_by_id[choice_value] = attr_value
+            self._choices_by_id[choice_id] = attr_value
 
     def __call__(self):
         return [
-            (choice_value["value"], choice_name)
+            (choice_value["id"], choice_name)
             for choice_name, choice_value in self._choices.items()
         ]
 
