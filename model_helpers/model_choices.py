@@ -3,189 +3,98 @@ from django.utils.translation import gettext as _
 from collections import OrderedDict
 
 
-class Choices(OrderedDict):
+class Choices:
     """
     Offer a cleaner way for django choices field
+    Requires python 3.6 or higher
+    Improvement over old Choices class:
+    1. code completion in IDEs
+    2. simpler syntax
+    3. supports class inheritance
 
-    Usage:
+    Example usage:
 
-    ** define a constant **
-    ANIMAL_TYPES = Choices(
-    [
-        {"insect": 1,
-        {"mammal": {"id": 2}, # same as {"mammal": 2}
-        {"none": {"id": None, "display": "Not Animal"},
-    ])
+    class FruitChoices(model_helpers.Choices2):
+        BERRY = {"display": "strawberry", "value": 1, "extra_key": "extra_value"}
+        BANANA = 2
+        WATER_MELON = 3
+        x = "unrelated attr" # this will be ignored because its not in upper case
 
-    ** Inside your model class **
 
-    animal_type = models.IntegerField(choices=ANIMAL_TYPES(), null=True)
+    FRUITS = FruitChoices()
 
-    output of ANIMAL_TYPES() is django choice list ordered by display name:
-    [(1, 'Insect'), (2, 'Mammal'), (None, 'Not Animal')]
-
-    ** Using the new model **
-    animal = Animals.objects.first()
-    if animal.animal_type == ANIMAL_TYPES.insect:
-        # do the insect related code
-
+    # In Django models:
+        fruit = models.IntegerField(choices=FRUITS()) # produces [(1, "BERRY"), (2, "BANANA"), (3, "WATER_MELON")]
     """
+    _choices = None
+    _choices_by_id = None
 
-    # always True except during the execution of__init__() and update() methods
-    _read_only = True
-    # cache for mapping between choice id and choice dictionary (populated on demand)
-    _choices_id = None
+    def __getattribute__(self, item):
+        attr_value = super().__getattribute__(item)
+        if item.startswith("_"):
+            return attr_value
 
-    def __init__(self, choices: typing.Iterable, order_by="display"):
-        """
+        if item in self._choices:
+            return attr_value["value"]
+        return attr_value
 
-        :param choices: dictionary of dictionary . ex: {'choice1': {'id':1, 'display': 'Code One'}, ...}
-        display key is optional. if not provided its assumed to be dict_key.replace("_", " ").capitalize()
-        :type choices: Choices | OrderedDict | dict | tuple | list
-        :param order_by: Whether generated Django choice list should be ordered (valid options "id", "display", None)
-        :type  order_by: str | None
-        """
-        self._read_only = False
+    @classmethod
+    def _get_all_attrs(cls, class_obj):
+        if not class_obj:
+            return tuple()
 
-        # Initialize parent dict with the choices provided by the user
-        super().__init__(choices)
-        choices_list = []
-        self._choices = choices_list
-        self._order_by = order_by
+        return cls._get_all_attrs(class_obj.__base__) + tuple(class_obj.__dict__.items())
 
-        if not choices:
-            return
-        # choice_ids are used to validate an id is not used more than once
-        choice_ids = set()
+    def __init__(self, *args):
+        if args:
+            raise NotImplementedError("Choices class has been updated, please use the new syntax")
+        self._choices = {}
+        self._choices_by_id = {}
+        for attr_name, attr_value in self._get_all_attrs(self.__class__):
+            if not attr_name.isupper():
+                continue
+            attr_name: str
+            if not isinstance(attr_value, dict):
+                attr_value =  {"value": attr_value, "display": attr_name.replace("_", " ").capitalize()}
 
-        for choice_code, choice_options in self.items():
-            if not issubclass(choice_options.__class__, dict):
-                # in case passing {"insect": 1} assume 1 is the id
-                choice_options = {"id": choice_options}
-                self[choice_code] = choice_options
-
-            choice_id = choice_options["id"]
-            choice_ids.add(choice_id)
-            # End of validation
-            if "display" not in choice_options:
-                choice_options["display"] = choice_code.replace("_", " ").capitalize()
-            display = choice_options["display"]
-            choices_list.append((choice_id, _(display)))
-        # Sort by display name
-        if order_by == "display":
-            choices_list.sort(key=lambda choice: choice[1])
-        elif order_by == "id":
-            choices_list.sort(key=lambda choice: choice[0])
-
-        self._read_only = True
+            attr_value["name"] = attr_name
+            choice_value = attr_value["value"]
+            self._choices[attr_name] = attr_value
+            if choice_value in self._choices_by_id:
+                raise ValueError(
+                    "Duplicate choice value {choice_value} for {choice_name} and {choice_name2}".format(
+                        choice_value=choice_value,
+                        choice_name=attr_name,
+                        choice_name2=self._choices_by_id[choice_value]["name"],
+                    )
+                )
+            self._choices_by_id[choice_value] = attr_value
 
     def __call__(self):
+        return [
+            (choice_value["value"], choice_name)
+            for choice_name, choice_value in self._choices.items()
+        ]
+
+    def get_choice(self, choice_id) -> dict:
         """
-        :return: list of choices
-        :rtype: list
+        Return translated display name of certain choice.
+        same as model's get_<field_name>_display()
+        :param choice_id: choice value as stored in Database
         """
-        return self._choices
+        return self._choices_by_id[choice_id]
 
     def get_display_name(self, choice_id):
         """
         Return translated display name of certain choice.
-        same same model's get_<field_name>_display()
-        :param choice_id: choice id
-        :rtype: str
+        same as model's get_<field_name>_display()
+        :param choice_id: choice value as stored in Database
         """
-        return self.get_value(choice_id, "display")
+        return self.get_choice(choice_id)["display"]
 
-    def get_value(self, choice_id, choice_key, raise_exception=True):
+    def get_choice_name(self, choice_id):
         """
-        Finds a choice with id <choice_id> and return value of key <key>
-
-        :param choice_id: the db value of the choice in question
-        :param choice_key: the key inside choice dictionary in which you want to get value of
-        :param raise_exception: if True, KeyError exception will be raised if the key wasn't found
-        :return: whatever stored in that choice key is returned,
-                 if key not found and raise_exception=False then None is returned
+        Returns name of certain choice given its database value.
+        :param choice_id: choice value as stored in Database
         """
-        if self._choices_id is None:
-            self._choices_id = {item["id"]: (key, item) for key, item in self.items()}
-
-        choice_name, choice = self._choices_id[choice_id]
-        if choice_key is None:
-            return choice_name
-        if raise_exception:
-            return choice[choice_key]
-        return choice.get(choice_key)
-
-    def get_code_name(self, choice_id):
-        """
-        Return code name of certain choice
-        :param choice_id: choice id
-        :rtype: str
-        """
-        return self.get_value(choice_id, choice_key=None)
-
-    def copy(self):
-        new_self = Choices({}, order_by=self._order_by)
-        new_self.update(self)
-        return new_self
-
-    def update(self, new_data=None, **kwargs):
-        """
-        :type new_data: Choices | OrderedDict | dict | tuple | list
-        """
-        if self._read_only:
-            raise TypeError("Choices are constants and can't be modified")
-
-        if not new_data:
-            new_data = kwargs
-
-        if not isinstance(new_data, Choices):
-            new_data = Choices(new_data)
-        assert isinstance(new_data, Choices)
-
-        common_keys = set(new_data.keys()) & set(self.keys())
-        if common_keys:
-            raise ValueError(
-                "The following keys exist in both instances {keys}".format(
-                    keys=", ".join(common_keys)
-                )
-            )
-
-        self._choices += new_data()
-        self._choices_id = None
-
-        super().update(new_data)
-
-    def __getattr__(self, attr_name):
-        if attr_name in self:
-            return self[attr_name]["id"]
-        raise AttributeError(
-            "Attribute {attr_name} is not part of {class_name} class".format(
-                attr_name=attr_name, class_name=self.__class__.__name__
-            )
-        )
-
-    def __setattr__(self, attr, *args):
-        if self._read_only and attr in self:
-            raise TypeError("Choices are constants and can't be modified")
-        super().__setattr__(attr, *args)
-
-    def __setitem__(self, *args):
-        if self._read_only:
-            raise TypeError("Choices are constants and can't be modified")
-        super().__setitem__(*args)
-
-    def __dir__(self):
-        return list(self.keys()) + dir(self.__class__)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        self._read_only = True
-
-    def __add__(self, other):
-        self._read_only = False
-        with self.copy() as result:
-            result.update(other)
-            self._read_only = True
-            return result
+        return self.get_choice(choice_id)["name"]
