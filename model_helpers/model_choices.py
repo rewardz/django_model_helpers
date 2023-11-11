@@ -35,7 +35,7 @@ class Choices:
             return attr_value
 
         if item in self._choices:
-            return attr_value["id"]
+            return self._choices[item]["id"]
         return attr_value
 
     @classmethod
