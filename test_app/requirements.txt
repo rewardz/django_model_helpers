@@ -1,0 +1,7 @@
+Django==4.0.3
+pylint==2.13.0
+pytest==7.4.3
+pytest-django==4.5.2
+coverage==6.3.2
+wemake-python-styleguide==0.16.1
+black==22.1.0
