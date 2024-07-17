@@ -10,7 +10,6 @@ class FruitChoices(model_helpers.Choices):
     BERRY = {"display": "strawberry", "id": 1, "extra_key": "extra_value"}
     BANANA = 2
     WATER_MELON = {"id": 3}
-    x = "unrelated attr"
 
 
 FRUITS = FruitChoices()
@@ -35,10 +34,9 @@ def test_choices_functions():
     assert FRUITS.get_display_name(3) == "Water melon"
     assert FRUITS.get_choice_name(3) == "WATER_MELON"
 
-    assert FRUITS.x == "unrelated attr"
-
 
 class FoodChoices(FruitChoices):
+    Nothing = None
     RICE = 4
     BREAD = 5
 
@@ -51,6 +49,7 @@ def test_concat_choices():
         (1, "BERRY"),
         (2, "BANANA"),
         (3, "WATER_MELON"),
+        (None, "Nothing"),
         (4, "RICE"),
         (5, "BREAD"),
     ]

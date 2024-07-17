@@ -1,6 +1,3 @@
-import typing
-from django.utils.translation import gettext as _
-from collections import OrderedDict
 
 
 class Choices:
@@ -28,6 +25,7 @@ class Choices:
     """
     _choices = None
     _choices_by_id = None
+    _supported_types = {bool, int, float, str, bytes, type(None), dict}
 
     def __getattribute__(self, item):
         attr_value = super().__getattribute__(item)
@@ -38,20 +36,21 @@ class Choices:
             return self._choices[item]["id"]
         return attr_value
 
-    @classmethod
-    def _get_all_attrs(cls, class_obj):
-        if not class_obj:
-            return tuple()
-
-        return cls._get_all_attrs(class_obj.__base__) + tuple(class_obj.__dict__.items())
+    def list_attrs(self) -> dict:
+        all_attrs = {}
+        for class_obj in reversed(self.__class__.__mro__):
+            all_attrs.update(class_obj.__dict__)
+        return all_attrs
 
     def __init__(self, *args):
         if args:
             raise NotImplementedError("Choices class has been updated, please use the new syntax")
         self._choices = {}
         self._choices_by_id = {}
-        for attr_name, attr_value in self._get_all_attrs(self.__class__):
-            if not attr_name.isupper():
+        for attr_name, attr_value in self.list_attrs().items():
+            if attr_name.startswith("_"):
+                continue
+            if type(attr_value) not in self._supported_types:
                 continue
             attr_name: str
             if not isinstance(attr_value, dict):

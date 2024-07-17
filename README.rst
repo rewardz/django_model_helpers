@@ -233,8 +233,8 @@ Then you can do
 ``Choices`` class is more flexible because it allow you to specify 3 values (or more!).
 The standard ones are:
 
-- choice attribute name (must be uppercase)
-- choice db value (aka choice_id)
+- choice attribute name
+- choice db value (aka choice_id): The value has to be one of (string, byte, bool, int, float, None)
 - choice display name.
 
 The example above can be better written like that
@@ -267,7 +267,13 @@ To return all students in grades higher than Sophomore
 
 -  A choice can be defined as attribute/value ``SOPHOMORE = 1`` in which case display name will be code name capitalized ``"Sophomore"`` and will be saved in DB as number ``1``
 -  A choice value can be fully defined as a dict ``FRESHMAN = {"id": 0, "display": "New comer"}`` in which case display name will be ``"New comer"`` and id will be ``0``
-- **NOTE:** attribute name must be in uppercase or it will be ignored (i.e FRESHMEN not freshman)
+
+NOTE:
+^^^^^
+
+Attribute value must be a basic python data type (i.e number, string, boolean, None) or it would be ignored.
+This behavior can be customized by overriding the ``_supported_types`` attribute on Choices class.
+
 
 Defining extra keys to use in your code.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
