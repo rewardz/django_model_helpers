@@ -24,6 +24,17 @@ def test_choices_output():
 
 
 def test_choices_functions():
+    assert FRUITS.list_choices() == {
+        "BANANA": {"display": "Banana", "id": 2, "name": "BANANA"},
+        "BERRY": {
+            "display": "strawberry",
+            "extra_key": "extra_value",
+            "id": 1,
+            "name": "BERRY",
+        },
+        "WATER_MELON": {"display": "Water melon", "id": 3, "name": "WATER_MELON"},
+    }
+
     assert FRUITS.BERRY == 1
     assert FRUITS.get_choice(1) == {
         "display": "strawberry", "id": 1, "extra_key": "extra_value", 'name': 'BERRY'
@@ -66,3 +77,6 @@ def test_errors():
     with pytest.raises(NotImplementedError):
         # old implementation is not supported anymore
         model_helpers.Choices([{"display": "strawberry", "id": 1, "extra_key": "extra_value"}])
+
+    with pytest.raises(DeprecationWarning):
+        FRUITS.list_attrs()

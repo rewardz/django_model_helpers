@@ -1,3 +1,11 @@
+from typing import TypedDict
+from warnings import deprecated
+
+
+class ChoiceType(TypedDict):
+    id: bool | int | float | str | bytes | dict | None
+    display: str
+    name: str
 
 
 class Choices:
@@ -36,18 +44,27 @@ class Choices:
             return self._choices[item]["id"]
         return attr_value
 
+    @deprecated(
+        "This method will be removed in future versions, use list_choices instead"
+    )
     def list_attrs(self) -> dict:
+        return self._list_attrs()
+
+    def _list_attrs(self) -> dict:
         all_attrs = {}
         for class_obj in reversed(self.__class__.__mro__):
             all_attrs.update(class_obj.__dict__)
         return all_attrs
+
+    def list_choices(self) -> dict[str, ChoiceType]:
+        return self._choices
 
     def __init__(self, *args):
         if args:
             raise NotImplementedError("Choices class has been updated, please use the new syntax")
         self._choices = {}
         self._choices_by_id = {}
-        for attr_name, attr_value in self.list_attrs().items():
+        for attr_name, attr_value in self._list_attrs().items():
             if attr_name.startswith("_"):
                 continue
             if type(attr_value) not in self._supported_types:
