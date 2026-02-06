@@ -37,10 +37,17 @@ def test_choices_functions():
 
     assert FRUITS.BERRY == 1
     assert FRUITS.get_choice(1) == {
-        "display": "strawberry", "id": 1, "extra_key": "extra_value", 'name': 'BERRY'
+        "display": "strawberry",
+        "id": 1,
+        "extra_key": "extra_value",
+        "name": "BERRY",
     }
     assert FRUITS.get_choice(2) == {"display": "Banana", "id": 2, "name": "BANANA"}
-    assert FRUITS.get_choice(3) == {"display": "Water melon", "id": 3, "name": "WATER_MELON"}
+    assert FRUITS.get_choice(3) == {
+        "display": "Water melon",
+        "id": 3,
+        "name": "WATER_MELON",
+    }
 
     assert FRUITS.get_display_name(3) == "Water melon"
     assert FRUITS.get_choice_name(3) == "WATER_MELON"
@@ -76,7 +83,9 @@ def test_errors():
         DuplicateFood()
     with pytest.raises(NotImplementedError):
         # old implementation is not supported anymore
-        model_helpers.Choices([{"display": "strawberry", "id": 1, "extra_key": "extra_value"}])
+        model_helpers.Choices(
+            [{"display": "strawberry", "id": 1, "extra_key": "extra_value"}]
+        )
 
     with pytest.raises(DeprecationWarning):
         FRUITS.list_attrs()

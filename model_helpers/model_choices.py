@@ -31,6 +31,7 @@ class Choices:
     # In Django models:
         fruit = models.IntegerField(choices=FRUITS()) # produces [(1, "BERRY"), (2, "BANANA"), (3, "WATER_MELON")]
     """
+
     _choices = None
     _choices_by_id = None
     _supported_types = {bool, int, float, str, bytes, type(None), dict}
@@ -61,7 +62,9 @@ class Choices:
 
     def __init__(self, *args):
         if args:
-            raise NotImplementedError("Choices class has been updated, please use the new syntax")
+            raise NotImplementedError(
+                "Choices class has been updated, please use the new syntax"
+            )
         self._choices = {}
         self._choices_by_id = {}
         for attr_name, attr_value in self._list_attrs().items():
@@ -71,7 +74,7 @@ class Choices:
                 continue
             attr_name: str
             if not isinstance(attr_value, dict):
-                attr_value =  {"id": attr_value}
+                attr_value = {"id": attr_value}
             if "display" not in attr_value:
                 attr_value["display"] = attr_name.replace("_", " ").capitalize()
 

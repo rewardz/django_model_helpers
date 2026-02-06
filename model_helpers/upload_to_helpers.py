@@ -5,7 +5,6 @@ from django.utils.deconstruct import deconstructible
 from django.utils.text import slugify
 from django.conf import settings
 
-
 UPLOAD_TO_OPTIONS = types.MappingProxyType(
     {
         "black_listed_extensions": [

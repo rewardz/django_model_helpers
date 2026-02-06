@@ -9,7 +9,12 @@ from django.core.cache import cache
 
 
 class CachedFunction:
-    def __init__(self, cache_timeout: int, key_parameters: typing.Iterable, key_class_attrs: typing.Iterable):
+    def __init__(
+        self,
+        cache_timeout: int,
+        key_parameters: typing.Iterable,
+        key_class_attrs: typing.Iterable,
+    ):
         """
         cache_timeout: number of seconds to store the cached value. default is determined by Django's `CACHE` settings.
         key_parameters: List of parameter names that need to match for the cache to be considered valid.
@@ -50,6 +55,7 @@ class CachedFunction:
                 returned_value = original_func(*args, **kwargs)
                 self.cache_value(cache_key, returned_value)
             return returned_value
+
         return wrapper
 
     def cache_value(self, cache_key: str, value) -> None:
@@ -85,7 +91,9 @@ class CachedFunction:
             except KeyError:
                 class_obj = func_arguments["cls"]
             for class_attr in self.key_class_attrs:
-                args["class.{0}".format(class_attr)] = repr(getattr(class_obj, class_attr))
+                args["class.{0}".format(class_attr)] = repr(
+                    getattr(class_obj, class_attr)
+                )
 
             args.pop("cls", None)
             args.pop("self", None)
@@ -99,9 +107,15 @@ class CachedFunction:
 
 
 def cached_function(
-    original_func=None, *, cache_timeout=None, key_parameters=None, key_class_attrs=None,
+    original_func=None,
+    *,
+    cache_timeout=None,
+    key_parameters=None,
+    key_class_attrs=None,
 ):
-    cached_func_instance = CachedFunction(cache_timeout, key_parameters, key_class_attrs)
+    cached_func_instance = CachedFunction(
+        cache_timeout, key_parameters, key_class_attrs
+    )
     if original_func:
         return cached_func_instance(original_func)
     return cached_func_instance
@@ -148,7 +162,9 @@ def cached_model_property(  # noqa: WPS212
     """
 
     def func(original_func):
-        cached_func_instance = CachedFunction(cache_timeout, key_class_attrs=["pk"], key_parameters=None)
+        cached_func_instance = CachedFunction(
+            cache_timeout, key_class_attrs=["pk"], key_parameters=None
+        )
 
         def get_x(obj: "models.Model"):
             return cached_func_instance(original_func)(obj)
