@@ -1,0 +1,12 @@
+If you are in the root directory of the package, you can run.
+
+pip install -r requirements.txt
+coverage run pytest
+
+to get code coverage report
+
+coverage report
+
+or for more detailed report
+
+coverate html

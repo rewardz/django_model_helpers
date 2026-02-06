@@ -1,12 +1,14 @@
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 from model_helpers import cached_model_property, KeyValueField
 
 
 class Team(models.Model):
     name = models.CharField(max_length=100)
-    options = KeyValueField(default="", blank=True,
-                            help_text="Set options using key=value format. i.e. password=123")
+    options = KeyValueField(
+        default="",
+        blank=True,
+        help_text="Set options using key=value format. i.e. password=123",
+    )
     counter = 0
 
     def get_counter(self):
@@ -25,4 +27,3 @@ class Team(models.Model):
     def one_sec_cache(self):
         self.counter += 1
         return self.counter
-

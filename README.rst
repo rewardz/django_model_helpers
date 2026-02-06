@@ -1,17 +1,22 @@
-**Model helpers** are small collection of django functions and classes that make working with models easier. All functions here are compliant with pylint and has test cases with over 95% code coverage. This doc describe each of these helpers.
+**Model helpers** are small collection of django functions and classes that make working with models easier.
+All functions here are compliant with pylint and has test cases with over 95% code coverage.
+This doc describe each of these helpers.
 
 upload_to_
   Pass this function to your `FileField` as `upload_to` argument
 
 cached_model_property_
-  Decorate a model function with that decorator to cache function's result
+  Decorate a model function with that decorator to turn it into a property that caches the result.
+
+cached_function_
+  Decorate any function or class method with that decorator to enable out of the box caching.
 
 Choices_
   A feature rich solution for implementing choice field
 
 KeyValueField_
   A field that can store multiple key/value entries in a human readable form
-  
+
 .. _upload_to:
 
 **model\_helpers.upload\_to**
@@ -88,6 +93,7 @@ cached_model_property decorator
 ``cached_model_property`` is a decorator for model functions that takes no arguments. The decorator convert the function into a property that support caching out of the box
 
 **Note**: ``cached_model_property`` is totally different from django's ``cached_property`` the later is not true caching but rather memorizing function's return value.
+``cache_timeout``: number of seconds before cache expires.
 
 **Sample usage:**
 
@@ -132,9 +138,39 @@ In this case the assigned value will replace the value stored in the cache
 
 I personally don't use the writable cached property option but might be useful to someone else
 
+.. _cached_function:
+
+cached_function decorator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``cached_function`` is a decorator for any functions.
+The decorator automatically cache function's result for a defined amount of time.
+The caching takes into account function arguments and *- for class methods -* class properties.
+
+``cache_timeout``: number of seconds before cache expires.
+``key_parameters``: Function parameters which the cached value depends on
+``key_class_attrs``: Class attributes which the cached value depends on
+
+**Sample Usage:**
+
+::
+
+    class ExampleClass:
+
+        example_field = 0
+
+        @cached_function(cache_timeout=1, key_parameters=["arg_a", "arg_b"], key_class_attrs=["example_field"])
+        def example_function(self, arg_a, arg_b, print_result=False):
+            if print_result:
+                print("Result is ", arg_a + arg_b)
+            return arg_a + arg_b
+
+This output from ``example_function`` will be cached for exactly `1` second.
+The cache would depend on value of function's ``arg_a`` and ``arg_b`` parameters and class's ``example_field`` value.
+
 .. _Choices:
 
-Choices class (inspired by `Django Choices <https://pypi.python.org/pypi/django-choices/>`_. )
+Choices class (version 2.0)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Dealing with Django's ``choices`` attribute is a pain. Here is a proper way of implementing choice field in Django
@@ -169,129 +205,154 @@ With Choices class this becomes
 
 ::
 
-    YEAR_IN_SCHOOL_CHOICES = Choices({
-        "freshman": "FR",
-        "sophomore": "SO",
-        "junior": "JR",
-        "Senior": "SR"
-    })
+    class SchoolYearChoices(Choices):
+        # attributes must be uppercase or it will be ignoredS
+        FRESHMAN = 'FR'
+        SOPHOMORE = 'SO'
+        JUNIOR = 'JR'
+        SENIOR = 'SR'
+
+    YEAR_IN_SCHOOL_CHOICES = SchoolYearChoices()
 
 
     class Student(models.Model):
         year_in_school = models.CharField(
                             max_length=2,
                             choices=YEAR_IN_SCHOOL_CHOICES(),
-                            default=YEAR_IN_SCHOOL_CHOICES.freshman)
+                            default=YEAR_IN_SCHOOL_CHOICES.FRESHMAN)
 
 Then you can do
 
 ::
 
     student = Student.objects.first()
-    if student.year_in_school == YEAR_IN_SCHOOL_CHOICES.senior:
+    if student.year_in_school == YEAR_IN_SCHOOL_CHOICES.SENIOR:
           # do some senior stuff
 
-``YEAR_IN_SCHOOL_CHOICES`` is a readonly OrderedDict and you can treat it as such. for example: ``YEAR_IN_SCHOOL_CHOICES.keys()`` or ``YEAR_IN_SCHOOL_CHOICES.iteritems()``
 
-``Choices`` class is more flexible because it allow you to specify 3 values. choice name, choice db value, choice display name. The example above can be better written like that
+``Choices`` class is more flexible because it allow you to specify 3 values (or more!).
+The standard ones are:
+
+- choice attribute name
+- choice db value (aka choice_id): The value has to be one of (string, byte, bool, int, float, None)
+- choice display name.
+
+The example above can be better written like that
 
 ::
 
-     YEAR_IN_SCHOOL_CHOICES = Choices({
-         "freshman": {"id": 0, "display": "New comer"},
-         "sophomore": 1,
-         "junior": 2,
-         "Senior": 3
-      }, order_by="id")
+    class SchoolYearChoices(Choices):
+         FRESHMAN: {"id": 0, "display": "New comer"},
+         SOPHOMORE: 1,
+         JUNIOR: 2,
+         SENIOR: 3
+
+     YEAR_IN_SCHOOL_CHOICES = SchoolYearChoices()
 
 
     class Student(models.Model):
         year_in_school = models.SmalllIntegerField(
-                            choices=YEAR_IN_SCHOOL_CHOICES(),
-                            default=YEAR_IN_SCHOOL_CHOICES.freshman)
+            choices=YEAR_IN_SCHOOL_CHOICES(),
+            default=YEAR_IN_SCHOOL_CHOICES.FRESHMAN
+        )
 
 Then you can do something like this
 
 ::
 
     Student.objects.filter(
-        year_in_school__gt=YEAR_IN_SCHOOL_CHOICES.sophomore)
+        year_in_school__gt=YEAR_IN_SCHOOL_CHOICES.SOPHOMORE)
 
 To return all students in grades higher than Sophomore
 
--  A choice can be defined as key/value ``"sophomore": 1`` in which case display name will be code name capitalized ``"Sophomore"`` and will be saved in DB as number ``1``
--  A choice can be fully defined as key/dict ``"freshman": {"id": 0, "display": "New comer"}`` in which case display name will be ``"New comer"`` and id will be ``0``
+-  A choice can be defined as attribute/value ``SOPHOMORE = 1`` in which case display name will be code name capitalized ``"Sophomore"`` and will be saved in DB as number ``1``
+-  A choice value can be fully defined as a dict ``FRESHMAN = {"id": 0, "display": "New comer"}`` in which case display name will be ``"New comer"`` and id will be ``0``
+
+NOTE:
+^^^^^
+
+Attribute value must be a basic python data type (i.e number, string, boolean, None) or it would be ignored.
+This behavior can be customized by overriding the ``_supported_types`` attribute on Choices class.
+
 
 Defining extra keys to use in your code.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned before ``Choices`` can be treated as an OrderedDictionary and so you should feel free to use the free functionality, for example adding extra keys
+``Choices`` attributes are dictionaries so they can hold additional keys.
+Those keys can be used in your code to define some settings or constants associated with that choice.
+For example:
 
 ::
 
-        AVAILABLE_SETTINGS = Choices({
-            "max_page_width": {"id": 0, "display": "Maximum page width in pixels", "default": 100})
+        class SettingsChoices(Choices):
+            MAX_PAGE_WIDTH = {"id": 0, "display": "Maximum page width in pixels", "default": 100}
+
+            def get_default_value(self, choice_id):
+                try:
+                   return self.get_choice(choice_id)["default"]
+                except KeyError:
+                   return None
+
+        AVAILABLE_SETTINGS = SettingsChoices()
 
 then in your code you can do
 
 ::
 
-    settings = Settings.objects.filter(name=AVAILABLE_SETTINGS.max_page_width).first()
-    if settings:
-        return settings.value
-    return AVAILABLE_SETTINGS["max_page_width"]["default"]
+    try:
+        return Settings.objects.get(name=AVAILABLE_SETTINGS.MAX_PAGE_WIDTH).value
+    except Settings.DoesNotExist:
+        return AVAILABLE_SETTINGS.get_default_value(AVAILABLE_SETTINGS.MAX_PAGE_WIDTH)
 
-Ordering your ``Choices``
+Inheriting ``Choices``
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Assuming you have a big list of choices you might prefer to ask Choices class to order them for you.
-
+One choice class can inherit from another choice class.
 **Example:**
 
 ::
 
-    Choices({
-         "usa": {"display": "United States", "id": 0},
-         "egypt": 1,
-         "uk": {"display": "United Kingdom", "id": 2},
-         "ua": {"display": "Ukraine", "id": 3}
-        }, order_by="display")
+        class SchoolYearChoices(Choices):
+            FRESHMAN = {"id": 0, "display": "New comer"},
+            SOPHOMORE = 1,
+            JUNIOR = 2,
+            SENIOR = 3
 
-The fields will be in the order "Egypt", "Ukraine", "United Kingdom", "United States".
+        class SchoolYearChoicesWithGraduate(SchoolYearChoices):
+            GRADUATE = 4
 
-``order_by="id"`` will order the list by id
+        YEAR_IN_SCHOOL = SchoolYearChoicesWithGraduate()
+        YEAR_IN_SCHOOL() == [
+            {"id": 0, "display": "New comer"},
+            {"id": 1, "display": "Sophomore"},
+            {"id": 2, "display": "Junior"},
+            {"id": 3, "display": "Senior"},
+            {"id": 4, "display": "Graduate"},
+        ]
 
-If you don't want any sort of ordering then set ``order_by=None`` and in this case its better that you pass your choices as tuple of dictionaries to maintain order
-
-::
-
-    Choices((
-         ("uk", {"display": "United Kingdom", "id": 2),
-         ("usa", {"display": "United States", "id": 0),
-         ("egypt", 1),
-         ("ua": {"display": "Ukraine", "id": 3})
-        ), order_by=None)
-
-**Note:** By default choices are ordered by display name
 
 Useful functions of ``Choices`` class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
--  ``get_display_name``: given choice id, return the display name of that id. same as model's ``get_<field_name>_display()``
--  ``get_code_name``: Given choice id same as ``get_display_name`` but return code name
--  ``get_value``: Given choice id, return value of any key defined inside choice entry
+-  ``get_display_name``: given choice id (value), return the display name of that id. same as model's ``get_<field_name>_display()``
+-  ``get_choice_name``: Given choice id same as ``get_display_name`` but return code name
+-  ``get_choice``: Given choice id, return a dictionary of all choice attributes
 
 **Example:**
 
 ::
 
-    CHOICES_EXAMPLE = Choices({"my_key": {"id": 0, "display": "Display Of My Key", "additional_key": 1234})
-    >>> CHOICES_EXAMPLE.get_display_name(0)
+    class ExampleChoice(Choices):
+        MY_KEY = {"id": 0, "display": "Display Of My Key", "additional_key": 1234}
+
+    CHOICES_EXAMPLE = ExampleChoice()
+
+
+    >>> CHOICES_EXAMPLE.get_display_name(CHOICES_EXAMPLE.MY_KEY)
     "Display Of My Key"
-    >>> CHOICES_EXAMPLE.get_code_name(0)
+    >>> CHOICES_EXAMPLE.get_choice_name(CHOICES_EXAMPLE.MY_KEY)
     "my_key"
-    >>> CHOICES_EXAMPLE.get_value(0, "additional_key")
-    1234
+    >>> CHOICES_EXAMPLE.get_choice(CHOICES_EXAMPLE.MY_KEY)
+    {"id": 0, "display": "Display Of My Key", "additional_key": 1234}
 
 .. _KeyValueField:
 
